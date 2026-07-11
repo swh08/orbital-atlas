@@ -14,7 +14,6 @@ import {
   createNightLightsMaterial,
   createPlanetMaterial,
   createRingMaterial,
-  createSolarLoopMaterial,
   createStarMaterial,
   createSunMaterial,
   type AnimatedShaderMaterial,
@@ -575,8 +574,6 @@ export class SolarSystem {
     corona.scale.setScalar(body.visualRadius * 3.85);
     root.add(corona);
 
-    if (!this.reducedMotion) this.createSolarLoops(surface, body.visualRadius);
-
     const light = new THREE.PointLight(0xffead1, 2.45, 0, 0);
     root.add(light);
     this.scene.add(new THREE.AmbientLight(0x1c2941, 0.04));
@@ -592,36 +589,6 @@ export class SolarSystem {
       framingRadius: body.visualRadius * 1.06,
       textureSource: "renderDerived",
     });
-  }
-
-  private createSolarLoops(parent: THREE.Object3D, radius: number): void {
-    const random = seedRandom(9_113);
-    const motionRandom = seedRandom(54_617);
-    for (let index = 0; index < 5; index += 1) {
-      const spread = 0.34 + random() * 0.44;
-      const baseHeight = Math.sqrt(1 - spread * spread) * radius;
-      const start = new THREE.Vector3(-spread * radius, baseHeight, 0);
-      const end = new THREE.Vector3(spread * radius, baseHeight, 0);
-      const minimumControlHeight = (radius * radius * 1.03) / baseHeight;
-      const control = new THREE.Vector3(
-        0,
-        Math.max(radius * (1.18 + random() * 0.82), minimumControlHeight),
-        radius * (random() - 0.5) * 0.28,
-      );
-      const curve = new THREE.QuadraticBezierCurve3(start, control, end);
-      const tubeRadius = radius * (0.008 + random() * 0.007);
-      const motionScale = radius * (0.016 + motionRandom() * 0.006);
-      const material = createSolarLoopMaterial(motionScale, tubeRadius, motionRandom() * Math.PI * 2);
-      this.animatedMaterials.push(material);
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 84, tubeRadius, 5, false),
-        material,
-      );
-      tube.frustumCulled = false;
-      tube.rotation.y = random() * Math.PI * 2;
-      tube.rotation.x = (random() - 0.5) * 1.25;
-      parent.add(tube);
-    }
   }
 
   private createPlanet(body: CelestialBody, textures: BodyTextureSet): void {
