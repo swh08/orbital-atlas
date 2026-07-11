@@ -75,24 +75,17 @@ export function createSunMaterial(): AnimatedShaderMaterial {
         float filaments = smoothstep(0.53, 0.82, flow + cells * 0.28);
         float energy = 0.58 + flow * 0.38 + granules * 0.38 + filaments * 0.16;
 
-        vec3 deepOrange = vec3(0.9, 0.12, 0.012);
-        vec3 amber = vec3(1.0, 0.45, 0.055);
-        vec3 whiteHot = vec3(1.0, 0.77, 0.36);
+        vec3 deepOrange = vec3(1.0, 0.16, 0.015);
+        vec3 amber = vec3(1.0, 0.53, 0.075);
+        vec3 whiteHot = vec3(1.0, 0.93, 0.67);
         vec3 color = mix(deepOrange, amber, smoothstep(0.42, 0.83, energy));
-        color = mix(color, whiteHot, smoothstep(0.98, 1.34, energy));
-
-        float spotField = noise3(p * 3.1 + vec3(4.2, 1.7, 8.4)) * 0.7
-          + noise3(p * 8.3 + vec3(-3.1, 6.2, 1.4)) * 0.3;
-        float activeLatitude = 1.0 - smoothstep(0.38, 0.72, abs(p.y));
-        float penumbra = smoothstep(0.6, 0.72, spotField) * activeLatitude;
-        float umbra = smoothstep(0.72, 0.82, spotField) * activeLatitude;
-        color *= 1.0 - penumbra * 0.31 - umbra * 0.33;
+        color = mix(color, whiteHot, smoothstep(0.82, 1.24, energy));
 
         vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
         float facing = clamp(dot(vWorldNormal, viewDirection), 0.0, 1.0);
         float limb = pow(facing, 0.28);
-        color *= mix(0.48, 1.04, limb);
-        gl_FragColor = vec4(color * 0.72, 1.0);
+        color *= mix(0.56, 1.18, limb);
+        gl_FragColor = vec4(color * 1.9, 1.0);
       }
     `,
     toneMapped: true,
@@ -410,15 +403,14 @@ export function createSolarLoopMaterial(
       void main() {
         vUv = uv;
         float anchored = pow(max(sin(uv.x * 3.14159265), 0.0), 1.35);
-        float motionTime = uTime * 0.42 + uPhase;
-        float slowWave = sin(uv.x * 8.2 + motionTime);
-        float fineWave = sin(uv.x * 17.6 - motionTime * 0.73 + uPhase);
-        float thickness = mix(0.34, 1.0, smoothstep(0.0, 0.18, anchored));
+        float motionTime = uTime * 0.3 + uPhase;
+        float outwardWave = 0.5 + 0.5 * sin(uv.x * 7.1 + motionTime);
+        float crossWave = sin(uv.x * 11.3 - motionTime * 0.7 + uPhase);
+        float thickness = mix(0.18, 1.0, smoothstep(0.0, 0.18, anchored));
 
         vec3 displaced = position + normal * uTubeRadius * (thickness - 1.0);
-        displaced.x += (slowWave * 0.55 + fineWave * 0.16) * uMotionScale * anchored;
-        displaced.y += sin(uv.x * 5.1 + motionTime * 0.81) * uMotionScale * 0.28 * anchored;
-        displaced.z += (fineWave * 0.58 - slowWave * 0.2) * uMotionScale * anchored;
+        displaced.y += outwardWave * uMotionScale * anchored;
+        displaced.z += crossWave * uMotionScale * 0.35 * anchored;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
       }
     `,
@@ -428,12 +420,12 @@ export function createSolarLoopMaterial(
       uniform float uPhase;
       varying vec2 vUv;
       void main() {
-        float travellingPulse = 0.5 + 0.5 * sin(vUv.x * 36.0 - uTime * 3.2 + uPhase);
+        float travellingPulse = 0.42 + 0.58 * sin(vUv.x * 36.0 - uTime * 3.2 + uPhase);
         float edge = smoothstep(0.0, 0.35, sin(vUv.y * 3.14159265));
-        float endpointFade = smoothstep(0.0, 0.06, vUv.x) * smoothstep(0.0, 0.06, 1.0 - vUv.x);
+        float endpointFade = smoothstep(0.0, 0.04, vUv.x) * smoothstep(0.0, 0.04, 1.0 - vUv.x);
         gl_FragColor = vec4(
-          uColor * (0.42 + travellingPulse * 0.16),
-          edge * endpointFade * (0.04 + travellingPulse * 0.08)
+          uColor * (1.4 + travellingPulse),
+          edge * endpointFade * (0.16 + travellingPulse * 0.34)
         );
       }
     `,
@@ -441,6 +433,6 @@ export function createSolarLoopMaterial(
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
-    toneMapped: true,
+    toneMapped: false,
   });
 }
