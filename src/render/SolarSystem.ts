@@ -575,7 +575,7 @@ export class SolarSystem {
     corona.scale.setScalar(body.visualRadius * 3.35);
     root.add(corona);
 
-    if (!this.reducedMotion) this.createSolarLoops(tilt, body.visualRadius);
+    if (!this.reducedMotion) this.createSolarLoops(surface, body.visualRadius);
 
     const light = new THREE.PointLight(0xffead1, 2.45, 0, 0);
     root.add(light);
@@ -594,7 +594,7 @@ export class SolarSystem {
     });
   }
 
-  private createSolarLoops(parent: THREE.Group, radius: number): void {
+  private createSolarLoops(parent: THREE.Object3D, radius: number): void {
     const random = seedRandom(9_113);
     for (let index = 0; index < 2; index += 1) {
       const spread = 0.34 + random() * 0.34;
@@ -807,9 +807,9 @@ export class SolarSystem {
 
   private updateBodies(): void {
     for (const [bodyId, node] of this.bodyNodes) {
-      const { body, root, surface, tilt } = node;
+      const { body, root, surface } = node;
       if (bodyId === "sun") {
-        tilt.rotation.y = spinRadians(body, this.simulationDays);
+        surface.rotation.y = spinRadians(body, this.simulationDays);
         continue;
       }
 
