@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-07-11",
+  "notice": "NASA, USGS and NOAA-hosted planetary imagery is packaged locally as the visual baseline. Each source entry states whether the shipped file is an observation mosaic, a model texture, elevation data or a render-derived layer. Venus is presented behind an opaque render-derived cloud deck rather than as a directly visible radar surface. The Uranus and Neptune maps are the 1024 x 512 textures available in NASA's source GLB files; they are not claimed to be higher-resolution observation mosaics.",
+  "sources": [
+    {
+      "title": "USGS Venus Magellan C3-MDIR Colorized Global Mosaic",
+      "url": "https://planetarymaps.usgs.gov/mosaic/Venus_Magellan_C3-MDIR_Colorized_Global_Mosaic_4641m.tif",
+      "usage": ["public/textures/venus-color.jpg - locally converted 4096 x 2048 radar-derived surface baseline; hidden beneath the renderer's dense Venus cloud deck"],
+      "credit": "USGS Astrogeology Science Center; source observations from NASA's Magellan mission",
+      "licensePage": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+    },
+    {
+      "title": "NASA Earth Observatory - Blue Marble land, ocean and ice",
+      "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_8192.png",
+      "usage": ["public/textures/earth-color.jpg - locally packaged 4096 x 2048 daytime color"],
+      "credit": "NASA Earth Observatory",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA Earth Observatory - Blue Marble cloud layer",
+      "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57747/cloud_combined_8192.tif",
+      "usage": ["public/textures/earth-clouds.png - locally packaged 4096 x 2048 cloud layer"],
+      "credit": "NASA Earth Observatory",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA Earth Observatory - Earth at Night 2012",
+      "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/79000/79765/dnb_land_ocean_ice.2012.13500x6750.jpg",
+      "usage": ["public/textures/earth-night.jpg - locally packaged 4096 x 2048 night-light layer"],
+      "credit": "NASA Earth Observatory and NOAA National Geophysical Data Center",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA Earth Observatory - GEBCO 08 revised global elevation",
+      "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73934/gebco_08_rev_elev_21600x10800.png",
+      "usage": ["public/textures/earth-height.png - locally converted 4096 x 2048 grayscale elevation input"],
+      "credit": "NASA Earth Observatory; elevation source GEBCO",
+      "licensePage": "https://www.gebco.net/data-products/gridded-bathymetry-data"
+    },
+    {
+      "title": "USGS Astrogeology - Mars Viking MDIM 2.1 color mosaic",
+      "url": "https://astrogeology.usgs.gov/ckan/dataset/7131d503-cdc9-45a5-8f83-5126c0fd397e/resource/5ea881c6-01b3-41fa-a7af-42d2131b54f1/download/mars_viking_mdim21_clrmosaic_1km.jpg",
+      "usage": ["public/textures/mars-color.jpg - locally packaged 4096 x 2048 color mosaic"],
+      "credit": "USGS Astrogeology Science Center and NASA Ames Research Center",
+      "licensePage": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+    },
+    {
+      "title": "Mars Global Surveyor MOLA MEGDR",
+      "url": "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img",
+      "usage": ["public/textures/mars-height.png - locally converted 4096 x 2048 grayscale elevation input"],
+      "credit": "NASA Planetary Data System Geosciences Node; Mars Orbiter Laser Altimeter science team",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "Cassini's Best Maps of Jupiter - cylindrical map (PIA07782)",
+      "url": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia07/pia07782/PIA07782.jpg",
+      "usage": ["public/textures/jupiter-color.jpg - 3601 x 1801 cylindrical color map"],
+      "credit": "NASA/JPL/Space Science Institute",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NOAA Science On a Sphere - Saturn",
+      "url": "https://sos.noaa.gov/catalog/datasets/saturn/",
+      "assetUrl": "ftp://public.sos.noaa.gov/astronomy/saturn/original/2880.jpg",
+      "usage": ["public/textures/saturn-color.jpg - 2880 x 1440 color map"],
+      "credit": "Bjorn Jonsson and Steve Albers; distributed by NOAA Science On a Sphere",
+      "note": "This Saturn color file is credited to the NOAA Science On a Sphere catalog and is not represented here as a NASA asset."
+    },
+    {
+      "title": "NASA VTAD Uranus 3D model",
+      "url": "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/u/Uranus_1_51118.glb",
+      "usage": ["public/textures/uranus-color.png - extracted 1024 x 512 model texture"],
+      "credit": "NASA Visualization Technology Applications and Development",
+      "note": "The source GLB provides a 1024 x 512 texture. The local file preserves that source resolution; fine atmospheric detail is shader-derived rather than claimed as observed surface detail.",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA VTAD Neptune 3D model",
+      "url": "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/n/Neptune_1_49528.glb",
+      "usage": ["public/textures/neptune-color.png - extracted 1024 x 512 model texture"],
+      "credit": "NASA Visualization Technology Applications and Development",
+      "note": "The source GLB provides a 1024 x 512 texture. The local file preserves that source resolution; fine atmospheric detail is shader-derived rather than claimed as observed surface detail.",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA VTAD Saturn 3D model",
+      "url": "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/s/Saturn_1_120536.glb",
+      "usage": ["public/textures/saturn-rings.png - extracted and locally normalized 4096 x 16 radial ring texture"],
+      "credit": "NASA Visualization Technology Applications and Development",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA SVS CGI Moon Kit",
+      "url": "https://svs.gsfc.nasa.gov/4720",
+      "usage": ["Moon LROC color", "Moon LOLA elevation"],
+      "credit": "NASA Scientific Visualization Studio, Ernie Wright (USRA), Noah Petro (NASA/GSFC)",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA Enhanced Color Mercury Map",
+      "url": "https://science.nasa.gov/resource/enhanced-color-mercury-map/",
+      "usage": ["Mercury observation color baseline, converted to neutral grayscale for natural presentation"],
+      "credit": "NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "USGS Mercury MESSENGER Global DEM 665m",
+      "url": "https://astrogeology.usgs.gov/search/map/mercury_messenger_global_dem_665m",
+      "usage": ["Mercury elevation and bump detail"],
+      "credit": "USGS Astrogeology Science Center, NASA, Arizona State University, Johns Hopkins Applied Physics Laboratory, Carnegie Institution for Science",
+      "licensePage": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+    },
+    {
+      "title": "JPL Planetary Physical Parameters",
+      "url": "https://ssd.jpl.nasa.gov/planets/phys_par.html",
+      "usage": ["mean radii", "rotation periods", "axial tilts"],
+      "credit": "NASA/JPL-Caltech"
+    },
+    {
+      "title": "JPL Approximate Positions of the Planets",
+      "url": "https://ssd.jpl.nasa.gov/planets/approx_pos.html",
+      "usage": ["J2000 orbital elements", "Keplerian approximation"],
+      "credit": "NASA/JPL-Caltech"
+    },
+    {
+      "title": "NASA Scientific Visualization Studio Deep Star Maps 2020",
+      "url": "https://svs.gsfc.nasa.gov/4851",
+      "usage": ["scientific reference for spectral star field and Milky Way composition"],
+      "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio"
+    },
+    {
+      "title": "NASA Solar Dynamics Observatory",
+      "url": "https://svs.gsfc.nasa.gov/gallery/sdo4k-content/",
+      "usage": ["visual reference for procedural photosphere, corona and magnetic loops"],
+      "credit": "NASA/SDO and the AIA, EVE, and HMI science teams"
+    }
+  ]
+}
