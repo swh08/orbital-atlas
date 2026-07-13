@@ -4,12 +4,17 @@ import { displayOrbitRadius } from "../data/bodies";
 
 const DEG_TO_RAD = Math.PI / 180;
 
-export function orbitalPosition(body: CelestialBody, simulationDays: number, target = new THREE.Vector3()): THREE.Vector3 {
+export function orbitalPosition(
+  body: CelestialBody,
+  simulationDays: number,
+  target = new THREE.Vector3(),
+  semiMajorAxis = displayOrbitRadius(body.semiMajorAxisAu),
+): THREE.Vector3 {
   if (body.semiMajorAxisAu === 0 || body.orbitalPeriodDays === 0) {
     return target.set(0, 0, 0);
   }
 
-  const a = displayOrbitRadius(body.semiMajorAxisAu);
+  const a = semiMajorAxis;
   const e = body.eccentricity;
   const meanAnomaly =
     ((simulationDays / body.orbitalPeriodDays) * Math.PI * 2 + body.initialPhaseDeg * DEG_TO_RAD) %
@@ -31,14 +36,18 @@ export function orbitalPosition(body: CelestialBody, simulationDays: number, tar
   return target;
 }
 
-export function createOrbitPoints(body: CelestialBody, segments = 256): THREE.Vector3[] {
+export function createOrbitPoints(
+  body: CelestialBody,
+  segments = 256,
+  semiMajorAxis = displayOrbitRadius(body.semiMajorAxisAu),
+): THREE.Vector3[] {
   const points: THREE.Vector3[] = [];
   if (body.orbitalPeriodDays === 0) return points;
 
   for (let index = 0; index <= segments; index += 1) {
     const simulationDays = (index / segments) * body.orbitalPeriodDays -
       (body.initialPhaseDeg / 360) * body.orbitalPeriodDays;
-    points.push(orbitalPosition(body, simulationDays, new THREE.Vector3()));
+    points.push(orbitalPosition(body, simulationDays, new THREE.Vector3(), semiMajorAxis));
   }
   return points;
 }
