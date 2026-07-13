@@ -383,63 +383,28 @@ export async function loadBodyTextures(
   return textures;
 }
 
-export function createRingTexture(body: "saturn" | "uranus" | "neptune", size = 4096): THREE.CanvasTexture {
-  const height = body === "neptune" ? 256 : 32;
+export function createRingTexture(size = 4096): THREE.CanvasTexture {
+  const height = 32;
   const canvas = textureCanvas(size, height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("无法创建行星环纹理");
   const image = context.createImageData(size, height);
 
-  const gaussian = (radius: number, center: number, width: number): number => {
-    const distance = (radius - center) / width;
-    return Math.exp(-distance * distance);
-  };
-
   for (let x = 0; x < size; x += 1) {
     const radius = x / (size - 1);
+    const fineBands = Math.sin(radius * 860) * 0.045 + Math.sin(radius * 173) * 0.075;
+    const cRing = radius > 0.04 && radius < 0.27 ? 0.24 : 0;
+    const bRing = radius >= 0.27 && radius < 0.64 ? 0.83 : 0;
+    const cassini = radius >= 0.64 && radius < 0.71;
+    const aRing = radius >= 0.71 && radius < 0.965 ? 0.63 : 0;
+    let alpha = cassini ? 0.025 : clamp(Math.max(cRing, bRing, aRing) + fineBands);
+    alpha *= clamp(radius / 0.018) * clamp((1 - radius) / 0.035);
+    const warmth = 0.5 + Math.sin(radius * 61) * 0.5;
+    const red = 207 + warmth * 30;
+    const green = 192 + warmth * 25;
+    const blue = 161 + warmth * 21;
+
     for (let y = 0; y < height; y += 1) {
-      const angle = (y / height) * Math.PI * 2;
-      let alpha = 0;
-      let red = 165;
-      let green = 171;
-      let blue = 171;
-
-      if (body === "saturn") {
-        const fineBands = Math.sin(radius * 860) * 0.045 + Math.sin(radius * 173) * 0.075;
-        const cRing = radius > 0.04 && radius < 0.27 ? 0.24 : 0;
-        const bRing = radius >= 0.27 && radius < 0.64 ? 0.83 : 0;
-        const cassini = radius >= 0.64 && radius < 0.71;
-        const aRing = radius >= 0.71 && radius < 0.965 ? 0.63 : 0;
-        alpha = cassini ? 0.025 : clamp(Math.max(cRing, bRing, aRing) + fineBands);
-        alpha *= clamp(radius / 0.018) * clamp((1 - radius) / 0.035);
-        const warmth = 0.5 + Math.sin(radius * 61) * 0.5;
-        red = 207 + warmth * 30;
-        green = 192 + warmth * 25;
-        blue = 161 + warmth * 21;
-      } else if (body === "uranus") {
-        const rings = [
-          [0.08, 0.006, 0.1], [0.18, 0.004, 0.08], [0.29, 0.006, 0.12],
-          [0.42, 0.004, 0.09], [0.53, 0.005, 0.13], [0.64, 0.005, 0.1],
-          [0.76, 0.006, 0.15], [0.88, 0.005, 0.14], [0.965, 0.009, 0.29],
-        ] as const;
-        for (const [center, width, strength] of rings) {
-          alpha = Math.max(alpha, gaussian(radius, center, width) * strength);
-        }
-        red = 82;
-        green = 102;
-        blue = 103;
-      } else {
-        const inner = gaussian(radius, 0.035, 0.006) * 0.12;
-        const lassell = gaussian(radius, 0.53, 0.012) * 0.1;
-        const arago = gaussian(radius, 0.67, 0.006) * 0.11;
-        const adamsArc = 0.3 + 0.7 * Math.pow(Math.max(0, Math.cos(angle * 3 - 0.7)), 10);
-        const adams = gaussian(radius, 0.972, 0.008) * (0.12 + adamsArc * 0.34);
-        alpha = Math.max(inner, lassell, arago, adams);
-        red = 91;
-        green = 112;
-        blue = 131;
-      }
-
       const offset = (y * size + x) * 4;
       image.data[offset] = red;
       image.data[offset + 1] = green;
