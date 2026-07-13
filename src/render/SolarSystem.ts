@@ -63,6 +63,7 @@ interface BodyNode {
 
 interface CameraTransition {
   bodyId: BodyId;
+  cinematic: boolean;
   startedAt: number;
   duration: number;
   startPosition: THREE.Vector3;
@@ -77,14 +78,14 @@ interface CameraTransition {
 const J2000_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
 const DAY_MS = 86_400_000;
 const MOON_ORBIT_RADIUS = 1.72;
+const OVERVIEW_MIN_DISTANCE = 2;
+const OVERVIEW_MAX_DISTANCE = 190;
 const TOUR_SEQUENCE: BodyId[] = [
   "sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune",
 ];
 
 const RING_SYSTEMS: Partial<Record<BodyId, { inner: number; outer: number }>> = {
   saturn: { inner: 1.11, outer: 2.35 },
-  uranus: { inner: 1.55, outer: 2.02 },
-  neptune: { inner: 1.7, outer: 2.55 },
 };
 
 const BODY_FLATTENING: Partial<Record<BodyId, number>> = {
@@ -111,6 +112,12 @@ function easeInOutCubic(value: number): number {
   return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
 }
 
+function easeOutBack(value: number): number {
+  const overshoot = 1.15;
+  const shifted = value - 1;
+  return 1 + (overshoot + 1) * shifted * shifted * shifted + overshoot * shifted * shifted;
+}
+
 function seedRandom(seed: number): () => number {
   let value = seed >>> 0;
   return () => {
@@ -132,6 +139,7 @@ export class SolarSystem {
   private readonly loadingManager = new THREE.LoadingManager();
   private readonly bodyNodes = new Map<BodyId, BodyNode>();
   private readonly clickableObjects: THREE.Object3D[] = [];
+  private readonly orbitLines = new THREE.Group();
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly pressedKeys = new Set<string>();
@@ -140,7 +148,8 @@ export class SolarSystem {
   private readonly focusPosition = new THREE.Vector3();
   private readonly previousFocusPosition = new THREE.Vector3();
   private readonly tempQuaternion = new THREE.Quaternion();
-  private readonly selectionMarker: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  private readonly selectionMarker: THREE.Group;
+  private readonly selectionMarkerArcs: THREE.Group;
   private readonly moonOrbit: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   private composer: EffectComposer | null = null;
   private frameHandle = 0;
@@ -161,6 +170,7 @@ export class SolarSystem {
   private focusCloseApproach = false;
   private cinematicAngle = 0;
   private elapsed = 0;
+  private selectionMarkerLockStartedAt = Number.NEGATIVE_INFINITY;
   private destroyed = false;
   private pausedForVisibility = false;
   private readonly overviewExposure: number;
@@ -196,25 +206,33 @@ export class SolarSystem {
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = !reducedMotion;
     this.controls.dampingFactor = 0.055;
-    this.controls.minDistance = 2;
-    this.controls.maxDistance = 190;
+    this.controls.minDistance = OVERVIEW_MIN_DISTANCE;
+    this.controls.maxDistance = OVERVIEW_MAX_DISTANCE;
     this.controls.screenSpacePanning = true;
     this.controls.target.set(0, 0, 0);
 
-    this.selectionMarker = new THREE.Mesh(
-      new THREE.RingGeometry(1.035, 1.055, 96),
-      new THREE.MeshBasicMaterial({
-        color: 0xd7e6f3,
-        transparent: true,
-        opacity: 0.36,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        toneMapped: false,
-      }),
-    );
+    this.selectionMarker = new THREE.Group();
+    this.selectionMarkerArcs = new THREE.Group();
+    const selectionMaterial = new THREE.MeshBasicMaterial({
+      color: 0xd7e6f3,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    const arcLength = Math.PI * 0.46;
+    for (let index = 0; index < 3; index += 1) {
+      const arc = new THREE.Mesh(
+        new THREE.RingGeometry(1.04, 1.065, 32, 1, Math.PI / 6 + index * Math.PI * 2 / 3, arcLength),
+        selectionMaterial,
+      );
+      arc.renderOrder = 20;
+      this.selectionMarkerArcs.add(arc);
+    }
+    this.selectionMarker.add(this.selectionMarkerArcs);
     this.selectionMarker.visible = false;
-    this.selectionMarker.renderOrder = 20;
     this.scene.add(this.selectionMarker);
 
     this.moonOrbit = new THREE.Line(
@@ -222,6 +240,7 @@ export class SolarSystem {
       new THREE.LineBasicMaterial({ color: 0x9aacbd, transparent: true, opacity: 0.18 }),
     );
     this.scene.add(this.moonOrbit);
+    this.scene.add(this.orbitLines);
 
     this.configureLoadingManager();
     this.bindEvents();
@@ -253,7 +272,8 @@ export class SolarSystem {
     this.createPostProcessing();
     this.updateSize();
     this.updateBodies();
-    this.selectBody("sun", false);
+    const sun = BODY_BY_ID.get("sun");
+    if (sun) this.events.onBodySelected(sun);
     this.events.onLoadingChanged(0.96, { stage: "camera" });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     this.events.onLoadingChanged(1, { stage: "ready" });
@@ -265,6 +285,7 @@ export class SolarSystem {
     const node = this.bodyNodes.get(bodyId);
     if (!body || !node) return;
     this.selectedBodyId = bodyId;
+    this.selectionMarkerLockStartedAt = this.elapsed;
     this.selectionMarker.visible = true;
 
     if (moveCamera) {
@@ -281,6 +302,8 @@ export class SolarSystem {
     this.cameraTransition = null;
     this.focusInitialized = false;
     this.focusCloseApproach = false;
+    this.controls.minDistance = OVERVIEW_MIN_DISTANCE;
+    this.controls.maxDistance = OVERVIEW_MAX_DISTANCE;
     this.controls.enabled = true;
     const duration = this.reducedMotion ? 0.05 : 1.1;
     const target = new THREE.Vector3(0, 0, 0);
@@ -324,13 +347,31 @@ export class SolarSystem {
 
   startCinematic(): void {
     this.stopTour();
+    const node = this.bodyNodes.get(this.selectedBodyId);
+    if (!node) return;
     this.setModeInternal("cinematic");
     this.controls.enabled = false;
-    this.cameraTransition = null;
+    node.root.getWorldPosition(this.focusPosition);
     this.cinematicAngle = Math.atan2(
-      this.camera.position.z - this.controls.target.z,
-      this.camera.position.x - this.controls.target.x,
+      this.camera.position.z - this.focusPosition.z,
+      this.camera.position.x - this.focusPosition.x,
     );
+    if (!Number.isFinite(this.selectionMarkerLockStartedAt)) {
+      this.selectionMarkerLockStartedAt = this.elapsed;
+    }
+    this.cameraTransition = {
+      bodyId: this.selectedBodyId,
+      cinematic: true,
+      startedAt: performance.now(),
+      duration: this.reducedMotion ? 80 : 1_160,
+      startPosition: this.camera.position.clone(),
+      startTarget: this.controls.target.clone(),
+      offsetDirection: new THREE.Vector3(),
+      distance: 0,
+      startExposure: this.renderer.toneMappingExposure,
+      endExposure: FOCUS_EXPOSURE[this.selectedBodyId],
+      closeApproach: false,
+    };
   }
 
   startFlight(): void {
@@ -354,16 +395,17 @@ export class SolarSystem {
     this.events.onDateChanged(this.getSimulationDate(), this.timeRate);
   }
 
+  setOrbitLinesVisible(visible: boolean): void {
+    this.orbitLines.visible = visible;
+    this.moonOrbit.visible = visible;
+  }
+
   getTimeRate(): number {
     return this.timeRate;
   }
 
   getSimulationDate(): Date {
     return new Date(J2000_MS + this.simulationDays * DAY_MS);
-  }
-
-  getCameraMode(): CameraMode {
-    return this.cameraMode;
   }
 
   resetDate(): void {
@@ -377,6 +419,7 @@ export class SolarSystem {
     window.removeEventListener("resize", this.updateSize);
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keyup", this.handleKeyUp);
+    window.removeEventListener("blur", this.handleWindowBlur);
     document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
     this.canvas.removeEventListener("pointerup", this.handlePointerUp);
@@ -422,6 +465,7 @@ export class SolarSystem {
     window.visualViewport?.addEventListener("resize", this.updateSize);
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
+    window.addEventListener("blur", this.handleWindowBlur);
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.canvas.addEventListener("pointerdown", this.handlePointerDown);
     this.canvas.addEventListener("pointerup", this.handlePointerUp);
@@ -680,12 +724,12 @@ export class SolarSystem {
     observedTexture?: THREE.Texture,
   ): THREE.Vector3 {
     const settings = RING_SYSTEMS[body.id];
-    if (!settings || (body.id !== "saturn" && body.id !== "uranus" && body.id !== "neptune")) {
+    if (!settings) {
       return new THREE.Vector3(1, 0, 0);
     }
     const innerRadius = body.visualRadius * settings.inner;
     const outerRadius = body.visualRadius * settings.outer;
-    const texture = observedTexture ?? createRingTexture(body.id, 4096);
+    const texture = observedTexture ?? createRingTexture(4096);
     const ring = new THREE.Mesh(
       this.createRingGeometry(innerRadius, outerRadius, 512),
       createRingMaterial(texture, root.position, body.visualRadius),
@@ -732,16 +776,13 @@ export class SolarSystem {
       });
       const orbit = new THREE.LineLoop(geometry, material);
       orbit.renderOrder = -1;
-      this.scene.add(orbit);
+      this.orbitLines.add(orbit);
     }
   }
 
   private createMoonOrbitGeometry(): THREE.BufferGeometry {
-    const points: THREE.Vector3[] = [];
-    for (let index = 0; index <= 128; index += 1) {
-      const angle = (index / 128) * Math.PI * 2;
-      points.push(new THREE.Vector3(Math.cos(angle) * MOON_ORBIT_RADIUS, 0, Math.sin(angle) * MOON_ORBIT_RADIUS));
-    }
+    const moon = BODY_BY_ID.get("moon");
+    const points = moon ? createOrbitPoints(moon, 128, MOON_ORBIT_RADIUS) : [];
     return new THREE.BufferGeometry().setFromPoints(points);
   }
 
@@ -795,12 +836,7 @@ export class SolarSystem {
         if (earthNode) {
           const angle = (this.simulationDays / body.orbitalPeriodDays) * Math.PI * 2 +
             THREE.MathUtils.degToRad(body.initialPhaseDeg);
-          const local = new THREE.Vector3(
-            Math.cos(angle) * MOON_ORBIT_RADIUS * (1 - body.eccentricity),
-            0,
-            Math.sin(angle) * MOON_ORBIT_RADIUS,
-          );
-          local.applyAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(body.inclinationDeg));
+          const local = orbitalPosition(body, this.simulationDays, this.tempPosition, MOON_ORBIT_RADIUS);
           root.position.copy(earthNode.root.position).add(local);
           this.moonOrbit.position.copy(earthNode.root.position);
           moonSurfaceRotation = Math.PI - angle;
@@ -854,13 +890,8 @@ export class SolarSystem {
       const node = this.bodyNodes.get(this.selectedBodyId);
       if (!node) return;
       node.root.getWorldPosition(this.focusPosition);
-      const distance = this.fitDistance(node, 0.58);
       this.cinematicAngle += delta * (this.reducedMotion ? 0 : 0.09);
-      this.camera.position.set(
-        this.focusPosition.x + Math.cos(this.cinematicAngle) * distance,
-        this.focusPosition.y + distance * 0.28 + Math.sin(this.elapsed * 0.16) * distance * 0.055,
-        this.focusPosition.z + Math.sin(this.cinematicAngle) * distance,
-      );
+      this.cinematicPosition(node, this.focusPosition, this.camera.position);
       this.camera.lookAt(this.focusPosition);
       this.controls.target.copy(this.focusPosition);
     } else if (this.cameraMode === "flight") {
@@ -877,6 +908,15 @@ export class SolarSystem {
 
   private fitDistance(node: BodyNode, occupancy: number): number {
     return this.fitDistanceForRadius(node.framingRadius, occupancy);
+  }
+
+  private cinematicPosition(node: BodyNode, target: THREE.Vector3, result: THREE.Vector3): THREE.Vector3 {
+    const distance = this.fitDistance(node, 0.58);
+    return result.set(
+      target.x + Math.cos(this.cinematicAngle) * distance,
+      target.y + distance * 0.28 + Math.sin(this.elapsed * 0.16) * distance * 0.055,
+      target.z + Math.sin(this.cinematicAngle) * distance,
+    );
   }
 
   private focusDistance(node: BodyNode, closeApproach: boolean): number {
@@ -903,7 +943,11 @@ export class SolarSystem {
     const body = BODY_BY_ID.get(bodyId);
     const node = this.bodyNodes.get(bodyId);
     if (!body || !node) return;
+    const bodyChanged = this.selectedBodyId !== bodyId;
     this.selectedBodyId = bodyId;
+    if (bodyChanged || !Number.isFinite(this.selectionMarkerLockStartedAt)) {
+      this.selectionMarkerLockStartedAt = this.elapsed;
+    }
     this.focusCloseApproach = closeApproach;
     this.events.onBodySelected(body);
     this.events.onTextureSourceChanged(bodyId, node.textureSource);
@@ -934,6 +978,7 @@ export class SolarSystem {
     const distance = this.focusDistance(node, closeApproach);
     this.cameraTransition = {
       bodyId,
+      cinematic: false,
       startedAt: performance.now(),
       duration: this.reducedMotion ? 80 : closeApproach ? 920 : 1_160,
       startPosition: this.camera.position.clone(),
@@ -955,7 +1000,9 @@ export class SolarSystem {
     const node = this.bodyNodes.get(transition.bodyId);
     if (!node) return;
     const target = node.root.getWorldPosition(this.focusPosition);
-    const destination = this.tempPosition.copy(transition.offsetDirection).multiplyScalar(transition.distance).add(target);
+    const destination = transition.cinematic
+      ? this.cinematicPosition(node, target, this.tempPosition)
+      : this.tempPosition.copy(transition.offsetDirection).multiplyScalar(transition.distance).add(target);
     const progress = Math.min(1, (performance.now() - transition.startedAt) / transition.duration);
     const eased = easeInOutCubic(progress);
     this.camera.position.lerpVectors(transition.startPosition, destination, eased);
@@ -1004,14 +1051,18 @@ export class SolarSystem {
 
   private updateSelectionMarker(): void {
     const node = this.bodyNodes.get(this.selectedBodyId);
-    const shouldShow = this.cameraMode === "overview" || this.cameraTransition !== null;
+    const shouldShow = Number.isFinite(this.selectionMarkerLockStartedAt) && this.cameraTransition !== null;
     this.selectionMarker.visible = shouldShow;
     if (!node || !shouldShow) return;
     node.root.getWorldPosition(this.focusPosition);
     this.selectionMarker.position.copy(this.focusPosition);
     this.selectionMarker.quaternion.copy(this.camera.quaternion);
-    const pulse = this.reducedMotion ? 1 : 1 + Math.sin(this.elapsed * 2.1) * 0.025;
-    const scale = node.framingRadius * 1.18 * pulse;
+    this.selectionMarkerArcs.rotation.z = this.reducedMotion ? 0 : -this.elapsed * 0.45;
+    const lockProgress = this.reducedMotion
+      ? 1
+      : THREE.MathUtils.clamp((this.elapsed - this.selectionMarkerLockStartedAt) / 0.72, 0, 1);
+    const lockScale = THREE.MathUtils.lerp(2.2, 1, easeOutBack(lockProgress));
+    const scale = node.framingRadius * 1.22 * lockScale;
     this.selectionMarker.scale.setScalar(scale);
   }
 
@@ -1106,6 +1157,10 @@ export class SolarSystem {
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
     this.pressedKeys.delete(event.code);
+  };
+
+  private readonly handleWindowBlur = (): void => {
+    this.pressedKeys.clear();
   };
 
   private readonly handleContextLost = (event: Event): void => {
