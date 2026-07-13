@@ -50,25 +50,14 @@ export interface Messages {
     loadingAria: string;
     sceneStatusAria: string;
     solarSystem: string;
-    scale: string;
-    readableCompression: string;
     simulationUtc: string;
     simulationDateAria: string;
     rendering: string;
     language: string;
     switchLanguageValue: string;
     switchLanguageAria: string;
-    scaleNote: string;
-    catalogEyebrow: string;
     catalogTitle: string;
-    close: string;
-    closeCatalogAria: string;
-    catalogStar: string;
-    catalogMoon: string;
-    catalogCenter: string;
-    catalogFootnote: string;
     profileEyebrow: string;
-    closeDetailsAria: string;
     averageRadius: string;
     orbitalDistance: string;
     orbitalPeriod: string;
@@ -82,19 +71,22 @@ export interface Messages {
     controlsAria: string;
     bodies: string;
     overview: string;
-    pause: string;
-    resume: string;
-    timeRate: string;
-    realTime: string;
+    settings: string;
+    settingsTitle: string;
+    orbitLines: string;
+    settingOn: string;
+    settingOff: string;
     oneHourPerSecond: string;
     oneDayPerSecond: string;
-    sevenDaysPerSecond: string;
-    thirtyDaysPerSecond: string;
-    resetDateAria: string;
+    cycleTimeRateAria: (current: string, next: string) => string;
+    cameraModes: string;
     tour: string;
     guidedTour: string;
     cinematic: string;
+    compactCinematic: string;
     freeFlight: string;
+    compactFlight: string;
+    cycleCameraModeAria: (current: string, next: string) => string;
     compactTourHelp: string;
     compactDefaultHelp: string;
     flightHelp: string;
@@ -184,25 +176,14 @@ const EN_MESSAGES: Messages = {
     loadingAria: "Solar System loading progress",
     sceneStatusAria: "Scene status",
     solarSystem: "Solar System",
-    scale: "Scale",
-    readableCompression: "Readable compression",
     simulationUtc: "Simulation UTC",
     simulationDateAria: "Simulation UTC date",
     rendering: "Render",
     language: "Language",
     switchLanguageValue: "中文",
     switchLanguageAria: "Switch language to Simplified Chinese",
-    scaleNote: "Orbital parameters are preserved; body radii and orbital distances use separate observable compression scales.",
-    catalogEyebrow: "CELESTIAL CATALOG",
     catalogTitle: "Bodies",
-    close: "Close",
-    closeCatalogAria: "Close celestial catalog",
-    catalogStar: "Star",
-    catalogMoon: "Moon",
-    catalogCenter: "Center",
-    catalogFootnote: "Orbits and rotation use scientific time. Display radii and distances are compressed independently for visibility.",
     profileEyebrow: "ORBITAL PROFILE",
-    closeDetailsAria: "Close body information",
     averageRadius: "Average radius",
     orbitalDistance: "Orbital distance",
     orbitalPeriod: "Orbital period",
@@ -216,22 +197,25 @@ const EN_MESSAGES: Messages = {
     controlsAria: "Solar System controls",
     bodies: "Bodies",
     overview: "Overview",
-    pause: "Pause",
-    resume: "Resume",
-    timeRate: "Time rate",
-    realTime: "Real time",
+    settings: "Settings",
+    settingsTitle: "Display settings",
+    orbitLines: "Orbit lines",
+    settingOn: "On",
+    settingOff: "Off",
     oneHourPerSecond: "1 hour/s",
     oneDayPerSecond: "1 day/s",
-    sevenDaysPerSecond: "7 days/s",
-    thirtyDaysPerSecond: "30 days/s",
-    resetDateAria: "Reset to the current date",
+    cycleTimeRateAria: (current, next) => `Change time rate. Current: ${current}. Next: ${next}.`,
+    cameraModes: "Mode",
     tour: "Tour",
     guidedTour: "Guided tour",
     cinematic: "Cinematic",
+    compactCinematic: "Cinema",
     freeFlight: "Free flight",
+    compactFlight: "Flight",
+    cycleCameraModeAria: (current, next) => `Switch camera mode. Current: ${current}. Next: ${next}.`,
     compactTourHelp: "The camera advances automatically; drag to stop",
     compactDefaultHelp: "One finger to orbit, pinch to zoom",
-    flightHelp: "WASD to move, Q/E for elevation, Shift to accelerate",
+    flightHelp: "WASD to move, Q/E for elevation, Shift to accelerate, Esc to exit",
     tourHelp: "The camera advances by chapter; drag the scene to stop",
     cinematicHelp: "The camera orbits automatically; choose another mode to exit",
     defaultHelp: "Drag to orbit, scroll to zoom",
@@ -310,25 +294,14 @@ const ZH_MESSAGES: Messages = {
     loadingAria: "太阳系资源载入进度",
     sceneStatusAria: "场景状态",
     solarSystem: "太阳系",
-    scale: "尺度",
-    readableCompression: "可读压缩",
     simulationUtc: "模拟 UTC",
     simulationDateAria: "模拟 UTC 日期",
     rendering: "渲染",
     language: "语言",
     switchLanguageValue: "EN",
     switchLanguageAria: "切换语言为英文",
-    scaleNote: "轨道参数保真，天体半径与轨道距离采用可观察压缩比例",
-    catalogEyebrow: "CELESTIAL CATALOG",
     catalogTitle: "天体目录",
-    close: "关闭",
-    closeCatalogAria: "关闭天体目录",
-    catalogStar: "恒星",
-    catalogMoon: "卫星",
-    catalogCenter: "中心",
-    catalogFootnote: "轨道与自转使用科学时间，显示半径与距离经过不同程度压缩。",
     profileEyebrow: "天体档案",
-    closeDetailsAria: "关闭天体信息",
     averageRadius: "平均半径",
     orbitalDistance: "轨道距离",
     orbitalPeriod: "公转周期",
@@ -342,22 +315,25 @@ const ZH_MESSAGES: Messages = {
     controlsAria: "太阳系控制",
     bodies: "天体",
     overview: "全景",
-    pause: "暂停",
-    resume: "继续",
-    timeRate: "时间倍率",
-    realTime: "实时",
+    settings: "设置",
+    settingsTitle: "显示设置",
+    orbitLines: "轨道线",
+    settingOn: "开",
+    settingOff: "关",
     oneHourPerSecond: "1 小时/秒",
     oneDayPerSecond: "1 天/秒",
-    sevenDaysPerSecond: "7 天/秒",
-    thirtyDaysPerSecond: "30 天/秒",
-    resetDateAria: "重置为当前日期",
+    cycleTimeRateAria: (current, next) => `切换时间倍率。当前：${current}；下一档：${next}。`,
+    cameraModes: "模式",
     tour: "导览",
     guidedTour: "自动导览",
     cinematic: "电影镜头",
+    compactCinematic: "电影",
     freeFlight: "自由飞行",
+    compactFlight: "飞行",
+    cycleCameraModeAria: (current, next) => `切换视角模式。当前：${current}；下一项：${next}。`,
     compactTourHelp: "镜头自动推进，拖动画面可中止",
     compactDefaultHelp: "单指环绕，双指缩放",
-    flightHelp: "WASD 移动，Q/E 升降，Shift 加速",
+    flightHelp: "WASD 移动，Q/E 升降，Shift 加速，Esc 退出",
     tourHelp: "镜头按章节推进，拖动画面可中止",
     cinematicHelp: "镜头自动环绕，选择其他模式可退出",
     defaultHelp: "拖动环绕，滚轮缩放",

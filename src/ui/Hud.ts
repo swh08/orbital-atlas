@@ -11,9 +11,15 @@ export interface HudActions {
   flight: () => void;
   approach: () => void;
   setTimeRate: (rate: number) => void;
-  resetDate: () => void;
+  setOrbitLinesVisible: (visible: boolean) => void;
   changeLocale: (locale: Locale) => void;
 }
+
+type PanelName = "catalog" | "details" | "settings";
+type CycledCameraMode = Extract<CameraMode, "tour" | "cinematic" | "flight">;
+
+const MOBILE_CAMERA_MODES: readonly CycledCameraMode[] = ["tour", "cinematic", "flight"];
+const TIME_RATES = [1 / 86_400, 1 / 24, 1, 7, 30] as const;
 
 export class Hud {
   private readonly root: HTMLElement;
@@ -21,16 +27,17 @@ export class Hud {
   private readonly formatLocale: string;
   private readonly messages: Messages;
   private actions: HudActions | null = null;
+  private orbitLinesVisible = true;
   private timeRate = 1 / 24;
-  private resumeTimeRate = 1 / 24;
   private selectedBodyId: BodyId = "sun";
   private loaderDismissed = false;
   private hasInitialSelection = false;
   private cameraMode: CameraMode = "overview";
   private panelReturnFocus: HTMLElement | null = null;
-  private readonly compactUi = window.matchMedia(
+  private readonly compactUiQuery = window.matchMedia(
     "(max-width: 720px), (pointer: coarse) and (max-width: 840px), (orientation: landscape) and (max-height: 520px)",
-  ).matches;
+  );
+  private compactUi = this.compactUiQuery.matches;
 
   constructor(root: HTMLElement, localeSelection: LocaleSelection) {
     this.root = root;
@@ -63,7 +70,7 @@ export class Hud {
         loader.classList.add("is-complete");
         this.query<HTMLElement>("#interaction-hint").classList.add("is-visible");
         window.setTimeout(() => this.query<HTMLElement>("#interaction-hint").classList.remove("is-visible"), 5_500);
-      }, 380);
+      }, 160);
     }
   }
 
@@ -136,24 +143,21 @@ export class Hud {
       button.classList.toggle("is-active", button.dataset.cameraMode === mode);
       button.setAttribute("aria-pressed", String(button.dataset.cameraMode === mode));
     }
+    this.syncMobileCameraModeButton(mode);
     if (this.compactUi && (mode === "tour" || mode === "cinematic")) this.closePanel("details");
   }
 
   setDate(date: Date, rate: number): void {
-    if (rate > 0) this.resumeTimeRate = rate;
     this.timeRate = rate;
     this.query<HTMLElement>("#simulation-date").textContent = new Intl.DateTimeFormat(this.formatLocale, {
       timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
+      dateStyle: "short",
     }).format(date);
-    this.query<HTMLElement>("#rate-label").textContent = this.formatRate(rate);
-    const playButton = this.query<HTMLButtonElement>("#play-button");
-    playButton.textContent = rate === 0 ? this.messages.hud.resume : this.messages.hud.pause;
-    const select = this.query<HTMLSelectElement>("#time-rate");
-    const option = Array.from(select.options).find((item) => Number(item.value) === rate);
-    if (option) select.value = String(rate);
+    const button = this.query<HTMLButtonElement>("#time-rate-toggle");
+    const currentLabel = this.formatRate(rate);
+    const nextLabel = this.formatRate(this.nextTimeRate(rate));
+    this.query<HTMLElement>("#rate-label").textContent = currentLabel;
+    button.setAttribute("aria-label", this.messages.hud.cycleTimeRateAria(currentLabel, nextLabel));
   }
 
   setFps(fps: number): void {
@@ -189,13 +193,15 @@ export class Hud {
     const sunCopy = getBodyCopy(this.locale, sun);
     this.root.innerHTML = `
       <main class="experience-shell">
-        <canvas id="space-canvas" class="space-canvas" aria-label="${m.hud.canvasAria}"></canvas>
+        <canvas id="space-canvas" class="space-canvas" tabindex="0" aria-label="${m.hud.canvasAria}" aria-describedby="camera-help"></canvas>
 
         <div id="loading-screen" class="loading-screen" role="progressbar" aria-label="${m.hud.loadingAria}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="loading-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="loading-copy">
-            <p>${m.hud.atlasEyebrow}</p>
-            <h1>${m.hud.atlasTitle}</h1>
+            <div class="loading-heading">
+              <img src="/brand/orbital-atlas-logo.png" alt="" aria-hidden="true" />
+              <div class="loading-heading-copy"><p>${m.hud.atlasEyebrow}</p><h1>${m.hud.atlasTitle}</h1></div>
+            </div>
             <div class="loading-meta"><span id="loading-status">${m.hud.loadingInitial}</span><span id="loading-value">0%</span></div>
             <div class="loading-track"><span id="loading-progress"></span></div>
             <small>${m.hud.loadingNote}</small>
@@ -204,66 +210,64 @@ export class Hud {
 
         <header class="top-bar" aria-label="${m.hud.sceneStatusAria}">
           <div class="brand-lockup">
-            <p>ORBITAL ATLAS</p>
-            <div><strong>${m.hud.solarSystem}</strong><span>/</span><span id="current-body-name">${sunCopy.name}</span></div>
+            <img class="brand-mark" src="/brand/orbital-atlas-logo.png" alt="" aria-hidden="true" />
+            <div class="brand-copy">
+              <p>ORBITAL ATLAS</p>
+              <div class="brand-current"><strong>${m.hud.solarSystem}</strong><span>/</span><span id="current-body-name">${sunCopy.name}</span></div>
+            </div>
           </div>
           <div class="status-cluster">
-            <button id="scale-button" class="status-item status-button" type="button" aria-expanded="false" aria-controls="scale-note">
-              <span>${m.hud.scale}</span><strong>${m.hud.readableCompression}</strong>
-            </button>
-            <button id="language-button" class="status-item status-button language-button" type="button" aria-label="${m.hud.switchLanguageAria}">
-              <span>${m.hud.language}</span><strong lang="${this.locale === "en" ? "zh-Hans" : "en"}">${m.hud.switchLanguageValue}</strong>
-            </button>
             <div class="status-item" aria-label="${m.hud.simulationDateAria}"><span>${m.hud.simulationUtc}</span><strong id="simulation-date">----</strong></div>
             <div class="status-item status-fps"><span>${m.hud.rendering}</span><strong id="fps-value">-- FPS</strong></div>
           </div>
-          <div id="scale-note" class="scale-note" hidden>${m.hud.scaleNote}</div>
         </header>
 
         <div id="panel-scrim" class="panel-scrim" aria-hidden="true"></div>
 
-        <section id="catalog-panel" class="catalog-panel" role="dialog" aria-modal="${String(this.compactUi)}" aria-hidden="true" aria-labelledby="catalog-title" inert>
-          <div class="panel-heading">
-            <div><p>${m.hud.catalogEyebrow}</p><h2 id="catalog-title">${m.hud.catalogTitle}</h2></div>
-            <button class="icon-text-button" type="button" data-close-panel="catalog" aria-label="${m.hud.closeCatalogAria}">${m.hud.close}</button>
-          </div>
+        <section id="catalog-panel" class="catalog-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="catalog-title" inert>
+          <h2 id="catalog-title" class="sr-only">${m.hud.catalogTitle}</h2>
           <div class="catalog-grid">
             ${BODIES.map((body) => {
               const copy = getBodyCopy(this.locale, body);
-              const secondary = this.locale === "zh-Hans" ? body.englishName : m.kinds[body.kind];
-              const catalogValue = body.id === "sun"
-                ? this.locale === "zh-Hans" ? m.hud.catalogStar : m.hud.catalogCenter
-                : body.id === "moon"
-                  ? this.locale === "zh-Hans" ? m.hud.catalogMoon : `${this.formatNumber(384_400, 0)} km`
-                  : `${this.formatNumber(body.semiMajorAxisAu, 2)} AU`;
+              const textureUrl = textureSourceUrl(body.id);
+              const textureStyle = textureUrl ? `--body-texture:url(${textureUrl});` : "";
               return `
-              <button class="catalog-item" type="button" data-body-id="${body.id}" style="--body-color:${body.accent}">
+              <button class="catalog-item" type="button" data-body-id="${body.id}" style="--body-color:${body.accent};${textureStyle}">
                 <span class="body-orb" aria-hidden="true"></span>
-                <span><strong>${copy.name}</strong><small>${secondary}</small></span>
-                <em>${catalogValue}</em>
+                <strong>${copy.name}</strong>
               </button>
             `;
             }).join("")}
           </div>
-          <p class="catalog-footnote">${m.hud.catalogFootnote}</p>
+        </section>
+
+        <section id="settings-panel" class="settings-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="settings-title" inert>
+          <div class="settings-heading">
+            <strong id="settings-title">${m.hud.settingsTitle}</strong>
+          </div>
+          <button id="language-button" class="settings-toggle" type="button" aria-label="${m.hud.switchLanguageAria}">
+            <span>${m.hud.language}</span><strong lang="${this.locale === "en" ? "zh-Hans" : "en"}">${m.hud.switchLanguageValue}</strong>
+          </button>
+          <button id="orbit-lines-toggle" class="settings-toggle is-active" type="button" aria-pressed="true">
+            <span>${m.hud.orbitLines}</span>
+            <strong>${m.hud.settingOn}</strong>
+          </button>
         </section>
 
         <aside id="details-panel" class="details-panel" role="dialog" aria-modal="${String(this.compactUi)}" aria-hidden="true" aria-labelledby="details-name" inert>
           <div class="details-accent" aria-hidden="true"></div>
           <div class="panel-heading details-heading">
             <div><p id="details-english">${this.locale === "zh-Hans" ? sun.englishName : m.hud.profileEyebrow}</p><h2 id="details-name">${sunCopy.name}</h2></div>
-            <button class="icon-text-button" type="button" data-close-panel="details" aria-label="${m.hud.closeDetailsAria}">${m.hud.close}</button>
+            <div class="details-summary">
+              <p id="details-kind" class="body-kind">${m.kinds[sun.kind]}</p>
+              <p id="details-description" class="details-description"></p>
+            </div>
           </div>
-          <p id="details-kind" class="body-kind">${m.kinds[sun.kind]}</p>
-          <p id="details-description" class="details-description"></p>
           <dl class="body-facts">
-            <div><dt>${m.hud.averageRadius}</dt><dd id="detail-radius"></dd></div>
-            <div><dt>${m.hud.orbitalDistance}</dt><dd id="detail-distance"></dd></div>
-            <div><dt>${m.hud.orbitalPeriod}</dt><dd id="detail-orbit"></dd></div>
-            <div><dt>${m.hud.rotationPeriod}</dt><dd id="detail-rotation"></dd></div>
-            <div><dt>${m.hud.axialTilt}</dt><dd id="detail-tilt"></dd></div>
-            <div><dt>${m.hud.orbitalInclination}</dt><dd id="detail-inclination"></dd></div>
-            <div class="fact-wide"><dt>${m.hud.temperature}</dt><dd id="detail-temperature"></dd></div>
+            <div><dt>${m.hud.averageRadius} / ${m.hud.orbitalDistance}</dt><dd><span id="detail-radius"></span> / <span id="detail-distance"></span></dd></div>
+            <div><dt>${m.hud.orbitalPeriod} / ${m.hud.rotationPeriod}</dt><dd><span id="detail-orbit"></span> / <span id="detail-rotation"></span></dd></div>
+            <div><dt>${m.hud.axialTilt} / ${m.hud.orbitalInclination}</dt><dd><span id="detail-tilt"></span> / <span id="detail-inclination"></span></dd></div>
+            <div><dt>${m.hud.temperature}</dt><dd id="detail-temperature"></dd></div>
           </dl>
           <div class="source-note"><span>${m.hud.surfaceSource}</span><strong id="texture-source">${m.texture.procedural}</strong></div>
           <div class="details-actions">
@@ -273,22 +277,17 @@ export class Hud {
         </aside>
 
         <div class="bottom-controls" role="group" aria-label="${m.hud.controlsAria}">
-          <button id="catalog-button" class="control-button" type="button" aria-expanded="false" aria-controls="catalog-panel">${m.hud.bodies}</button>
-          <button class="control-button" type="button" data-camera-mode="overview" aria-pressed="true">${m.hud.overview}</button>
+          <button class="control-button is-active" type="button" data-camera-mode="overview" aria-pressed="true">${m.hud.overview}</button>
+          <button id="catalog-button" class="control-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="catalog-panel">${m.hud.bodies}</button>
           <span class="control-separator" aria-hidden="true"></span>
-          <button id="play-button" class="control-button control-primary" type="button">${m.hud.pause}</button>
-          <label class="rate-control"><span class="sr-only">${m.hud.timeRate}</span><select id="time-rate">
-            <option value="0.000011574074">${m.hud.realTime}</option>
-            <option value="0.041666666667" selected>${m.hud.oneHourPerSecond}</option>
-            <option value="1">${m.hud.oneDayPerSecond}</option>
-            <option value="7">${m.hud.sevenDaysPerSecond}</option>
-            <option value="30">${m.hud.thirtyDaysPerSecond}</option>
-          </select></label>
-          <button id="reset-date" class="control-button control-date" type="button" aria-label="${m.hud.resetDateAria}"><span id="rate-label">${m.hud.oneHourPerSecond}</span></button>
+          <button id="time-rate-toggle" class="control-button time-rate-toggle control-group-start" type="button" aria-label="${m.hud.cycleTimeRateAria(m.hud.oneHourPerSecond, m.hud.oneDayPerSecond)}"><span id="rate-label">${m.hud.oneHourPerSecond}</span></button>
           <span class="control-separator mode-separator" aria-hidden="true"></span>
-          <button id="tour-button" class="control-button mode-control" type="button" data-camera-mode="tour" aria-pressed="false">${this.compactUi ? m.hud.tour : m.hud.guidedTour}</button>
+          <button id="tour-button" class="control-button mode-control control-group-start" type="button" data-camera-mode="tour" aria-pressed="false">${this.compactUi ? m.hud.tour : m.hud.guidedTour}</button>
           <button id="cinematic-button" class="control-button mode-control" type="button" data-camera-mode="cinematic" aria-pressed="false">${m.hud.cinematic}</button>
           <button id="flight-button" class="control-button mode-control" type="button" data-camera-mode="flight" aria-pressed="false">${m.hud.freeFlight}</button>
+          <button id="mobile-mode-button" class="control-button mobile-mode-control control-group-start" type="button" aria-pressed="false" aria-label="${m.hud.cycleCameraModeAria(m.modes.overview, m.modes.tour)}">${m.hud.cameraModes}</button>
+          <span class="control-separator settings-separator" aria-hidden="true"></span>
+          <button id="settings-button" class="control-button control-group-start" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-panel">${m.hud.settings}</button>
         </div>
 
         <div class="camera-chip"><span id="camera-mode">${m.modes.overview}</span><span id="camera-help">${this.compactUi ? m.hud.compactDefaultHelp : m.hud.defaultHelp}</span></div>
@@ -310,6 +309,7 @@ export class Hud {
     this.root.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      this.closePopoversOutside(target);
       if (target.closest("#panel-scrim")) {
         this.closeOpenPanel();
         return;
@@ -321,39 +321,46 @@ export class Hud {
         this.closePanel("catalog", !detailsOpened);
         return;
       }
-      const closeButton = target.closest<HTMLButtonElement>("[data-close-panel]");
-      if (closeButton?.dataset.closePanel) {
-        this.closePanel(closeButton.dataset.closePanel as "catalog" | "details");
-        return;
-      }
       if (target.closest("#catalog-button")) this.toggleCatalog();
+      else if (target.closest("#settings-button")) this.toggleSettings();
       else if (target.closest("#overview-detail-button")) {
         this.actions?.overview();
         this.closePanel("details");
       }
+      else if (target.closest("#orbit-lines-toggle")) this.toggleOrbitLines();
       else if (target.closest("[data-camera-mode='overview']")) this.actions?.overview();
-      else if (target.closest("#play-button")) this.actions?.setTimeRate(this.timeRate === 0 ? this.resumeTimeRate : 0);
-      else if (target.closest("#reset-date")) this.actions?.resetDate();
+      else if (target.closest("#time-rate-toggle")) this.actions?.setTimeRate(this.nextTimeRate(this.timeRate));
+      else if (target.closest("#mobile-mode-button")) this.cycleMobileCameraMode();
       else if (target.closest("#tour-button")) this.actions?.toggleTour();
       else if (target.closest("#cinematic-button")) this.actions?.cinematic();
-      else if (target.closest("#flight-button")) this.actions?.flight();
+      else if (target.closest("#flight-button")) {
+        this.actions?.flight();
+        this.query<HTMLCanvasElement>("#space-canvas").focus({ preventScroll: true });
+      }
       else if (target.closest("#approach-button")) {
         this.actions?.approach();
         if (this.compactUi) this.closePanel("details");
       }
-      else if (target.closest("#scale-button")) this.toggleScaleNote();
       else if (target.closest("#language-button")) this.actions?.changeLocale(this.locale === "en" ? "zh-Hans" : "en");
     });
 
-    this.query<HTMLSelectElement>("#time-rate").addEventListener("change", (event) => {
-      const select = event.currentTarget;
-      if (select instanceof HTMLSelectElement) this.actions?.setTimeRate(Number(select.value));
+    this.root.addEventListener("focusout", (event) => {
+      const nextFocus = event.relatedTarget instanceof Element ? event.relatedTarget : null;
+      window.setTimeout(() => this.closeBlurredPopovers(nextFocus));
     });
 
+    this.compactUiQuery.addEventListener("change", this.handleCompactUiChange);
+
     window.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || !this.closeOpenPanel()) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
+      if (event.key !== "Escape") return;
+      if (this.closeOpenPanel()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      } else if (this.cameraMode === "flight") {
+        window.requestAnimationFrame(() => {
+          this.query<HTMLButtonElement>("[data-camera-mode='overview']").focus({ preventScroll: true });
+        });
+      }
     });
   }
 
@@ -364,31 +371,111 @@ export class Hud {
     else this.closePanel("catalog");
   }
 
-  private openPanel(panelName: "catalog" | "details", returnFocus: HTMLElement): void {
-    const otherPanel = panelName === "catalog" ? "details" : "catalog";
-    this.closePanel(otherPanel, false);
+  private toggleSettings(): void {
+    const panel = this.query<HTMLElement>("#settings-panel");
+    const open = !panel.classList.contains("is-open");
+    if (open) this.openPanel("settings", this.query<HTMLButtonElement>("#settings-button"));
+    else this.closePanel("settings");
+  }
+
+  private toggleOrbitLines(): void {
+    this.orbitLinesVisible = !this.orbitLinesVisible;
+    this.actions?.setOrbitLinesVisible(this.orbitLinesVisible);
+    const button = this.query<HTMLButtonElement>("#orbit-lines-toggle");
+    button.classList.toggle("is-active", this.orbitLinesVisible);
+    button.setAttribute("aria-pressed", String(this.orbitLinesVisible));
+    button.querySelector("strong")!.textContent = this.orbitLinesVisible
+      ? this.messages.hud.settingOn
+      : this.messages.hud.settingOff;
+  }
+
+  private cycleMobileCameraMode(): void {
+    const currentIndex = MOBILE_CAMERA_MODES.indexOf(this.cameraMode as CycledCameraMode);
+    const nextMode = MOBILE_CAMERA_MODES[(currentIndex + 1) % MOBILE_CAMERA_MODES.length];
+    if (nextMode === "tour") this.actions?.toggleTour();
+    else if (nextMode === "cinematic") this.actions?.cinematic();
+    else {
+      this.actions?.flight();
+      this.query<HTMLCanvasElement>("#space-canvas").focus({ preventScroll: true });
+    }
+  }
+
+  private syncMobileCameraModeButton(mode: CameraMode): void {
+    const button = this.query<HTMLButtonElement>("#mobile-mode-button");
+    const currentIndex = MOBILE_CAMERA_MODES.indexOf(mode as CycledCameraMode);
+    const active = currentIndex >= 0;
+    const nextMode = MOBILE_CAMERA_MODES[(currentIndex + 1) % MOBILE_CAMERA_MODES.length];
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute(
+      "aria-label",
+      this.messages.hud.cycleCameraModeAria(this.messages.modes[mode], this.messages.modes[nextMode]),
+    );
+    button.textContent = mode === "tour"
+      ? this.messages.hud.tour
+      : mode === "cinematic"
+        ? this.messages.hud.compactCinematic
+        : mode === "flight"
+          ? this.messages.hud.compactFlight
+          : this.messages.hud.cameraModes;
+  }
+
+  private closePopoversOutside(target: HTMLElement): void {
+    for (const panelName of ["catalog", "settings"] as const) {
+      const panel = this.query<HTMLElement>(`#${panelName}-panel`);
+      const trigger = this.query<HTMLButtonElement>(`#${panelName}-button`);
+      if (panel.classList.contains("is-open") && !panel.contains(target) && !trigger.contains(target)) {
+        this.closePanel(panelName, false);
+      }
+    }
+  }
+
+  private closeBlurredPopovers(focusTarget: Element | null): void {
+    for (const panelName of ["catalog", "settings"] as const) {
+      const panel = this.query<HTMLElement>(`#${panelName}-panel`);
+      const trigger = this.query<HTMLButtonElement>(`#${panelName}-button`);
+      if (panel.classList.contains("is-open") && !panel.contains(focusTarget) && !trigger.contains(focusTarget)) {
+        this.closePanel(panelName, false);
+      }
+    }
+  }
+
+  private openPanel(panelName: PanelName, returnFocus: HTMLElement): void {
+    for (const otherPanel of ["catalog", "details", "settings"] as const) {
+      if (otherPanel !== panelName) this.closePanel(otherPanel, false);
+    }
     const panel = this.query<HTMLElement>(`#${panelName}-panel`);
     panel.classList.add("is-open");
     panel.setAttribute("aria-hidden", "false");
     panel.inert = false;
     this.panelReturnFocus = returnFocus;
     if (panelName === "catalog") this.query<HTMLButtonElement>("#catalog-button").setAttribute("aria-expanded", "true");
+    if (panelName === "settings") this.query<HTMLButtonElement>("#settings-button").setAttribute("aria-expanded", "true");
     this.syncPanelState();
-    window.setTimeout(() => {
+    const focusPanel = (): void => {
       if (panel.classList.contains("is-open")) {
-        panel.querySelector<HTMLButtonElement>("[data-close-panel]")?.focus({ preventScroll: true });
+        const focusTarget = panelName === "catalog"
+          ? panel.querySelector<HTMLButtonElement>(".catalog-item.is-active") ?? panel.querySelector<HTMLButtonElement>(".catalog-item")
+          : panelName === "settings"
+            ? panel.querySelector<HTMLButtonElement>(".settings-toggle")
+            : panel.querySelector<HTMLButtonElement>("#approach-button");
+        focusTarget?.focus({ preventScroll: true });
       }
-    }, 380);
+    };
+    panel.addEventListener("transitionend", focusPanel, { once: true });
+    window.setTimeout(focusPanel);
   }
 
-  private closePanel(panelName: "catalog" | "details", restoreFocus = true): void {
+  private closePanel(panelName: PanelName, restoreFocus = true): void {
     const panel = this.query<HTMLElement>(`#${panelName}-panel`);
     const wasOpen = panel.classList.contains("is-open");
     panel.classList.remove("is-open");
     panel.setAttribute("aria-hidden", "true");
     panel.inert = true;
     if (panelName === "catalog") this.query<HTMLButtonElement>("#catalog-button").setAttribute("aria-expanded", "false");
+    if (panelName === "settings") this.query<HTMLButtonElement>("#settings-button").setAttribute("aria-expanded", "false");
     this.syncPanelState();
+    if (wasOpen && !restoreFocus) this.panelReturnFocus = null;
     if (wasOpen && restoreFocus && this.panelReturnFocus) {
       const returnFocus = this.panelReturnFocus;
       this.panelReturnFocus = null;
@@ -401,6 +488,10 @@ export class Hud {
       this.closePanel("details");
       return true;
     }
+    if (this.query<HTMLElement>("#settings-panel").classList.contains("is-open")) {
+      this.closePanel("settings");
+      return true;
+    }
     if (this.query<HTMLElement>("#catalog-panel").classList.contains("is-open")) {
       this.closePanel("catalog");
       return true;
@@ -409,23 +500,31 @@ export class Hud {
   }
 
   private syncPanelState(): void {
-    const open = Boolean(this.root.querySelector(".catalog-panel.is-open, .details-panel.is-open"));
-    this.query<HTMLElement>(".experience-shell").classList.toggle("has-open-panel", open);
-    this.query<HTMLElement>("#panel-scrim").setAttribute("aria-hidden", String(!open));
-    if (this.compactUi) {
-      this.query<HTMLElement>(".top-bar").inert = open;
-      this.query<HTMLElement>(".bottom-controls").inert = open;
-    }
-    if (open) this.query<HTMLElement>("#interaction-hint").classList.remove("is-visible");
+    const catalogOpen = this.query<HTMLElement>("#catalog-panel").classList.contains("is-open");
+    const detailsOpen = this.query<HTMLElement>("#details-panel").classList.contains("is-open");
+    const settingsOpen = this.query<HTMLElement>("#settings-panel").classList.contains("is-open");
+    const shell = this.query<HTMLElement>(".experience-shell");
+    shell.classList.toggle("has-open-catalog", catalogOpen);
+    shell.classList.toggle("has-open-settings", settingsOpen);
+    shell.classList.toggle("has-open-panel", detailsOpen);
+    this.query<HTMLElement>("#panel-scrim").setAttribute("aria-hidden", String(!detailsOpen));
+    this.query<HTMLElement>(".top-bar").inert = this.compactUi && detailsOpen;
+    this.query<HTMLElement>(".bottom-controls").inert = this.compactUi && detailsOpen;
+    if (catalogOpen || detailsOpen || settingsOpen) this.query<HTMLElement>("#interaction-hint").classList.remove("is-visible");
   }
 
-  private toggleScaleNote(): void {
-    const button = this.query<HTMLButtonElement>("#scale-button");
-    const note = this.query<HTMLElement>("#scale-note");
-    const open = note.hidden;
-    note.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  }
+  private readonly handleCompactUiChange = (event: MediaQueryListEvent): void => {
+    this.compactUi = event.matches;
+    this.query<HTMLElement>("#details-panel").setAttribute("aria-modal", String(this.compactUi));
+    this.query<HTMLButtonElement>("#tour-button").textContent = this.compactUi
+      ? this.messages.hud.tour
+      : this.messages.hud.guidedTour;
+    this.query<HTMLElement>("#interaction-hint").textContent = this.compactUi
+      ? this.messages.hud.compactHint
+      : this.messages.hud.desktopHint;
+    this.setCameraMode(this.cameraMode);
+    this.syncPanelState();
+  };
 
   private loadingLabel(stage: LoadingStage): string {
     if (stage.stage === "renderer") return this.messages.loading.renderer;
@@ -463,6 +562,11 @@ export class Hud {
     const labels = this.messages.units[unit];
     const label = Math.abs(value - 1) < Number.EPSILON ? labels.one : labels.other;
     return `${this.formatNumber(value, rate < 1 ? 2 : 0)} ${label}/${this.messages.units.secondShort}`;
+  }
+
+  private nextTimeRate(rate: number): number {
+    const currentIndex = TIME_RATES.findIndex((candidate) => Math.abs(candidate - rate) < 1e-9);
+    return TIME_RATES[(currentIndex + 1) % TIME_RATES.length];
   }
 
   private textureSourceLabel(bodyId: BodyId): string {

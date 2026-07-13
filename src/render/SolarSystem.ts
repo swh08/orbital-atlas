@@ -408,11 +408,6 @@ export class SolarSystem {
     return new Date(J2000_MS + this.simulationDays * DAY_MS);
   }
 
-  resetDate(): void {
-    this.simulationDays = (Date.now() - J2000_MS) / DAY_MS;
-    this.events.onDateChanged(this.getSimulationDate(), this.timeRate);
-  }
-
   destroy(): void {
     this.destroyed = true;
     cancelAnimationFrame(this.frameHandle);

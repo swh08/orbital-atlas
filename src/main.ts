@@ -45,7 +45,7 @@ async function bootstrap(): Promise<void> {
     flight: () => solarSystem.startFlight(),
     approach: () => solarSystem.approachSelected(),
     setTimeRate: (rate) => solarSystem.setTimeRate(rate),
-    resetDate: () => solarSystem.resetDate(),
+    setOrbitLinesVisible: (visible) => solarSystem.setOrbitLinesVisible(visible),
     changeLocale: (nextLocale) => {
       window.localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLocale);
       window.location.reload();
