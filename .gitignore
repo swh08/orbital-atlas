@@ -2,5 +2,7 @@ node_modules/
 dist/
 output/
 .sites/
+.openai/
+artifacts/
 .DS_Store
 *.log

@@ -12,7 +12,7 @@
 
 <br />
 
-![轨道图谱全景](../artifacts/ui-audit/01-overview-desktop.png)
+![轨道图谱全景](../public/screenshots/overview.png)
 
 <div align="center"><sub>全景模式 · 行星轨道、小行星带、银河与分光谱星场</sub></div>
 
@@ -26,7 +26,7 @@
 
 ## 近距离观察地球
 
-![地球详情](../artifacts/ui-audit/03-earth-detail-desktop.png)
+![地球详情](../public/screenshots/earth-detail.png)
 
 <div align="center"><sub>天体档案 · 独立云层、夜光与高程细节，信息面板与镜头同步聚焦</sub></div>
 

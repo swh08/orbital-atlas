@@ -12,7 +12,7 @@
 
 <br />
 
-![Orbital Atlas overview](./artifacts/ui-audit/01-overview-desktop.png)
+![Orbital Atlas overview](./public/screenshots/overview.png)
 
 <div align="center"><sub>Overview mode · planetary paths, asteroid belt, Milky Way, and spectral star field</sub></div>
 
@@ -26,7 +26,7 @@ Orbital Atlas brings J2000 orbital elements and Keplerian motion into the browse
 
 ## Earth, up close
 
-![Earth detail](./artifacts/ui-audit/03-earth-detail-desktop.png)
+![Earth detail](./public/screenshots/earth-detail.png)
 
 <div align="center"><sub>Body profile · independent cloud, night-light, and elevation layers paired with a synchronized focus camera</sub></div>
 
