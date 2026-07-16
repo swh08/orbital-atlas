@@ -184,15 +184,17 @@ function createProceduralColor(body: BodyId, size: number): THREE.CanvasTexture 
   context.putImageData(image, 0, 0);
 
   if (["mercury", "moon", "mars"].includes(body)) {
-    const random = seeded(body === "mercury" ? 17 : body === "moon" ? 29 : 43);
+    const seed = body === "mercury" ? 17 : body === "moon" ? 29 : 43;
+    const random = seeded(seed);
     const count = body === "mars" ? 85 : 230;
     context.globalCompositeOperation = "multiply";
     for (let index = 0; index < count; index += 1) {
       const radius = Math.pow(random(), 3) * width * 0.026 + 1;
       const cx = random() * width;
       const cy = random() * height;
+      const yScale = 0.42 + random() * 0.48;
       context.beginPath();
-      context.ellipse(cx, cy, radius, radius * (0.42 + random() * 0.48), 0, 0, Math.PI * 2);
+      context.ellipse(cx, cy, radius, radius * yScale, 0, 0, Math.PI * 2);
       context.strokeStyle = `rgba(34, 27, 22, ${0.13 + random() * 0.25})`;
       context.lineWidth = Math.max(1, radius * 0.16);
       context.stroke();
@@ -246,7 +248,7 @@ function createSurfaceDetail(body: BodyId, size: number): THREE.CanvasTexture {
   return canvasTexture(canvas, false);
 }
 
-function createCloudTexture(body: "earth" | "venus", size: number): THREE.CanvasTexture {
+function createCloudTexture(body: "earth" | "venus" | "mars", size: number): THREE.CanvasTexture {
   const width = size;
   const height = Math.floor(size / 2);
   const canvas = textureCanvas(width, height);
@@ -258,7 +260,11 @@ function createCloudTexture(body: "earth" | "venus", size: number): THREE.Canvas
     const latitude = (0.5 - y / height) * Math.PI;
     for (let x = 0; x < width; x += 1) {
       const longitude = (x / width - 0.5) * Math.PI * 2;
-      const base = surfaceNoise(longitude + Math.sin(latitude * 3) * 0.11, latitude, body === "earth" ? 11 : 19);
+      const base = surfaceNoise(
+        longitude + Math.sin(latitude * 3) * 0.11,
+        latitude,
+        body === "earth" ? 11 : body === "venus" ? 19 : 43,
+      );
       let density: number;
       let cloudStreak = 0;
       if (body === "earth") {
@@ -266,17 +272,28 @@ function createCloudTexture(body: "earth" | "venus", size: number): THREE.Canvas
         const wisps = surfaceNoise(longitude * 3 - 0.21, latitude * 0.92, 31);
         const combined = base * 0.55 + detail * 0.3 + wisps * 0.15;
         density = clamp((combined - 0.525) * 4.6);
-      } else {
+      } else if (body === "venus") {
         const broadWave = 0.5 + Math.sin(longitude * 5 + latitude * 18 + base * 6) * 0.5;
         const fineWave = 0.5 + Math.sin(longitude * 13 - latitude * 37 + base * 11) * 0.5;
         cloudStreak = broadWave * 0.68 + fineWave * 0.32;
         density = clamp(0.24 + base * 0.48 + cloudStreak * 0.28);
+      } else {
+        const detail = surfaceNoise(longitude * 2.4 - 0.31, latitude * 0.88, 61);
+        const latitudeMask = 0.45 + Math.pow(Math.cos(latitude), 2) * 0.55;
+        density = clamp((base * 0.62 + detail * 0.38 - 0.64) * 5.2) * latitudeMask;
       }
       const offset = (y * width + x) * 4;
-      image.data[offset] = body === "earth" ? density * 255 : 158 + density * 72 + cloudStreak * 18;
-      image.data[offset + 1] = body === "earth" ? density * 255 : 116 + density * 68 + cloudStreak * 12;
-      image.data[offset + 2] = body === "earth" ? density * 255 : 62 + density * 57 + cloudStreak * 8;
-      image.data[offset + 3] = Math.floor(density * (body === "earth" ? 220 : 245));
+      if (body === "mars") {
+        image.data[offset] = density * 255;
+        image.data[offset + 1] = density * 255;
+        image.data[offset + 2] = density * 255;
+        image.data[offset + 3] = Math.floor(density * 176);
+      } else {
+        image.data[offset] = body === "earth" ? density * 255 : 158 + density * 72 + cloudStreak * 18;
+        image.data[offset + 1] = body === "earth" ? density * 255 : 116 + density * 68 + cloudStreak * 12;
+        image.data[offset + 2] = body === "earth" ? density * 255 : 62 + density * 57 + cloudStreak * 8;
+        image.data[offset + 3] = Math.floor(density * (body === "earth" ? 220 : 245));
+      }
     }
   }
   context.putImageData(image, 0, 0);
@@ -374,6 +391,9 @@ export async function loadBodyTextures(
   }
   if (body === "venus") {
     textures.clouds = createCloudTexture("venus", size);
+  }
+  if (body === "mars") {
+    textures.clouds = createCloudTexture("mars", 1024);
   }
   if (body === "saturn" && saturnRings) {
     saturnRings.wrapS = THREE.ClampToEdgeWrapping;

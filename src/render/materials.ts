@@ -115,7 +115,7 @@ export function createPlanetMaterial(body: CelestialBody, textures: BodyTextureS
       : body.id === "mercury"
         ? 0.006
         : body.id === "mars"
-          ? 0.009
+          ? 0.014
           : body.id === "earth"
             ? 0.002
             : 0,
@@ -128,7 +128,7 @@ export function createPlanetMaterial(body: CelestialBody, textures: BodyTextureS
   return new THREE.MeshPhysicalMaterial(parameters);
 }
 
-export function createCloudMaterial(texture: THREE.Texture, body: "earth" | "venus"): THREE.MeshPhysicalMaterial {
+export function createCloudMaterial(texture: THREE.Texture, body: "earth" | "venus" | "mars"): THREE.MeshPhysicalMaterial {
   if (body === "venus") {
     return new THREE.MeshPhysicalMaterial({
       map: texture,
@@ -136,6 +136,20 @@ export function createCloudMaterial(texture: THREE.Texture, body: "earth" | "ven
       metalness: 0,
       specularIntensity: 0.08,
       depthWrite: true,
+    });
+  }
+  if (body === "mars") {
+    return new THREE.MeshPhysicalMaterial({
+      color: 0xd99a6c,
+      alphaMap: texture,
+      transparent: true,
+      opacity: 0.34,
+      alphaTest: 0.012,
+      depthWrite: false,
+      roughness: 1,
+      metalness: 0,
+      specularIntensity: 0.04,
+      blending: THREE.NormalBlending,
     });
   }
   return new THREE.MeshPhysicalMaterial({

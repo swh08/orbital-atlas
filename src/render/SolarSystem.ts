@@ -659,9 +659,13 @@ export class SolarSystem {
       textureSource: textures.source,
     };
 
-    if ((body.id === "earth" || body.id === "venus") && textures.clouds) {
+    if ((body.id === "earth" || body.id === "venus" || body.id === "mars") && textures.clouds) {
       const cloud = new THREE.Mesh(
-        new THREE.SphereGeometry(body.visualRadius * (body.id === "earth" ? 1.008 : 1.015), 96, 48),
+        new THREE.SphereGeometry(
+          body.visualRadius * (body.id === "earth" ? 1.008 : body.id === "mars" ? 1.012 : 1.015),
+          96,
+          48,
+        ),
         createCloudMaterial(textures.clouds, body.id),
       );
       cloud.userData.bodyId = body.id;
@@ -694,7 +698,7 @@ export class SolarSystem {
     const atmosphere: Partial<Record<BodyId, [THREE.ColorRepresentation, number, number, number, number]>> = {
       venus: [0xe8bd78, 0.42, 4.1, 1.028, 0.035],
       earth: [0x4b9dff, 0.52, 4.4, 1.025, 0.025],
-      mars: [0xc86b43, 0.1, 5, 1.015, 0.02],
+      mars: [0xd57a52, 0.18, 4.8, 1.022, 0.025],
       jupiter: [0xd6a16d, 0.1, 5, 1.015, 0.025],
       saturn: [0xe1c28b, 0.1, 5, 1.015, 0.025],
       uranus: [0x83d6dc, 0.2, 4.6, 1.02, 0.03],
@@ -843,7 +847,7 @@ export class SolarSystem {
       surface.rotation.y = moonSurfaceRotation ?? spinRadians(body, this.simulationDays);
       if (node.cityLights) node.cityLights.rotation.y = surface.rotation.y;
       if (node.cloud) {
-        const cloudPeriod = bodyId === "earth" ? 0.82 : bodyId === "venus" ? 4.2 : 0.6;
+        const cloudPeriod = bodyId === "earth" ? 0.82 : bodyId === "venus" ? 4.2 : 1.027;
         node.cloud.rotation.y = (this.simulationDays / cloudPeriod) * Math.PI * 2;
       }
       if (node.ringShadowDirection && root.position.lengthSq() > 0.001) {
