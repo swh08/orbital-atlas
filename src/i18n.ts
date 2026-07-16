@@ -38,7 +38,7 @@ export interface Messages {
     paused: string;
     realTime: string;
     solarSystemCenter: string;
-    fromEarth: (distance: string) => string;
+    fromBody: (distance: string, parentName: string) => string;
     focused: (name: string) => string;
   };
   hud: {
@@ -164,7 +164,7 @@ const EN_MESSAGES: Messages = {
     paused: "Paused",
     realTime: "Real time",
     solarSystemCenter: "Solar System center",
-    fromEarth: (distance) => `${distance} from Earth`,
+    fromBody: (distance, parentName) => `${distance} from ${parentName}`,
     focused: (name) => `Focused on ${name}`,
   },
   hud: {
@@ -282,7 +282,7 @@ const ZH_MESSAGES: Messages = {
     paused: "已暂停",
     realTime: "实时时间",
     solarSystemCenter: "太阳系中心",
-    fromEarth: (distance) => `${distance}（距地球）`,
+    fromBody: (distance, parentName) => `${distance}（距${parentName}）`,
     focused: (name) => `已聚焦${name}`,
   },
   hud: {
@@ -390,7 +390,17 @@ const EN_BODY_COPY: Record<BodyId, LocalizedBodyCopy> = {
   mars: {
     name: "Mars",
     temperature: "Average: about -63 °C",
-    description: "Iron oxides give the surface its reddish-brown color. Mars is home to Olympus Mons, the largest volcano in the Solar System, and the vast Valles Marineris canyon system.",
+    description: "Observation color, measured elevation, polar caps, and a thin dust haze reveal terrain including Olympus Mons and the vast Valles Marineris canyon system.",
+  },
+  phobos: {
+    name: "Phobos",
+    temperature: "About -112 to -4 °C",
+    description: "Mars’s inner moon is irregular and heavily cratered. It circles Mars in about 7 hours 39 minutes, orbiting faster than Mars rotates.",
+  },
+  deimos: {
+    name: "Deimos",
+    temperature: "About -112 to -4 °C",
+    description: "Mars’s outer moon is smaller than Phobos. A deep layer of loose regolith softens the outlines of its impact craters.",
   },
   jupiter: {
     name: "Jupiter",

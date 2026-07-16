@@ -5,6 +5,8 @@ export type BodyId =
   | "earth"
   | "moon"
   | "mars"
+  | "phobos"
+  | "deimos"
   | "jupiter"
   | "saturn"
   | "uranus"
@@ -30,6 +32,7 @@ export interface CelestialBody {
   temperature: string;
   description: string;
   accent: string;
+  parentId?: BodyId;
 }
 
 export const BODIES: readonly CelestialBody[] = [
@@ -116,7 +119,7 @@ export const BODIES: readonly CelestialBody[] = [
     kind: "moon",
     radiusKm: 1_737.4,
     visualRadius: 0.25,
-    semiMajorAxisAu: 0.00257,
+    semiMajorAxisAu: 0.0025695553,
     orbitalPeriodDays: 27.322,
     rotationPeriodHours: 655.72,
     inclinationDeg: 5.145,
@@ -127,6 +130,7 @@ export const BODIES: readonly CelestialBody[] = [
     temperature: "-173 至 127 °C",
     description: "地球唯一的天然卫星。自转周期与公转周期相同，因此始终以近似同一面朝向地球。",
     accent: "#cbc8c1",
+    parentId: "earth",
   },
   {
     id: "mars",
@@ -144,8 +148,48 @@ export const BODIES: readonly CelestialBody[] = [
     ascendingNodeDeg: 49.558,
     initialPhaseDeg: 19.412,
     temperature: "平均约 -63 °C",
-    description: "铁氧化物使地表呈红褐色。这里有太阳系最大火山奥林帕斯山与巨型峡谷水手谷。",
+    description: "铁氧化物使地表呈红褐色。观测色彩图、高程起伏、极冠与稀薄尘霾分层呈现奥林帕斯山和水手谷等地貌。",
     accent: "#d27750",
+  },
+  {
+    id: "phobos",
+    name: "火卫一",
+    englishName: "PHOBOS",
+    kind: "moon",
+    radiusKm: 11.267,
+    visualRadius: 0.1,
+    semiMajorAxisAu: 0.0000626747,
+    orbitalPeriodDays: 0.31891,
+    rotationPeriodHours: 7.65384,
+    inclinationDeg: 1.093,
+    axialTiltDeg: 0,
+    eccentricity: 0.0151,
+    ascendingNodeDeg: 164,
+    initialPhaseDeg: 82,
+    temperature: "约 -112 至 -4 °C",
+    description: "火星内侧卫星，形状不规则且布满撞击坑。它每约 7 小时 39 分绕火星一周，轨道速度快于火星自转。",
+    accent: "#a8927d",
+    parentId: "mars",
+  },
+  {
+    id: "deimos",
+    name: "火卫二",
+    englishName: "DEIMOS",
+    kind: "moon",
+    radiusKm: 6.2,
+    visualRadius: 0.075,
+    semiMajorAxisAu: 0.000156842,
+    orbitalPeriodDays: 1.26244,
+    rotationPeriodHours: 30.2986,
+    inclinationDeg: 0.93,
+    axialTiltDeg: 0,
+    eccentricity: 0.0003,
+    ascendingNodeDeg: 339,
+    initialPhaseDeg: 244,
+    temperature: "约 -112 至 -4 °C",
+    description: "火星外侧卫星，体积比火卫一更小，表面覆盖厚厚的松散尘土，使撞击坑轮廓显得更柔和。",
+    accent: "#b6a38f",
+    parentId: "mars",
   },
   {
     id: "jupiter",
@@ -230,7 +274,11 @@ export const BODY_BY_ID = new Map<BodyId, CelestialBody>(
 );
 
 export const PLANETS = BODIES.filter(
-  (body): body is CelestialBody => body.id !== "sun" && body.id !== "moon",
+  (body): body is CelestialBody => body.id !== "sun" && body.parentId === undefined,
+);
+
+export const SATELLITES = BODIES.filter(
+  (body): body is CelestialBody & { parentId: BodyId } => body.parentId !== undefined,
 );
 
 export function displayOrbitRadius(semiMajorAxisAu: number): number {

@@ -98,6 +98,12 @@
       "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
     },
     {
+      "title": "NASA Mars Moons: Facts",
+      "url": "https://science.nasa.gov/mars/moons/facts/",
+      "usage": ["Phobos and Deimos dimensions, orbital periods and tidal locking"],
+      "credit": "NASA"
+    },
+    {
       "title": "NASA Enhanced Color Mercury Map",
       "url": "https://science.nasa.gov/resource/enhanced-color-mercury-map/",
       "usage": ["Mercury observation color baseline, converted to neutral grayscale for natural presentation"],

@@ -94,7 +94,7 @@ export function createSunMaterial(): AnimatedShaderMaterial {
 
 export function createPlanetMaterial(body: CelestialBody, textures: BodyTextureSet): THREE.MeshPhysicalMaterial {
   const rocky = body.kind === "rocky" || body.kind === "terrestrial" || body.kind === "moon";
-  const airless = body.id === "mercury" || body.id === "moon";
+  const airless = body.id === "mercury" || body.kind === "moon";
   const giantRoughness: Partial<Record<CelestialBody["id"], number>> = {
     jupiter: 0.97,
     saturn: 0.97,
@@ -109,7 +109,11 @@ export function createPlanetMaterial(body: CelestialBody, textures: BodyTextureS
   };
   const parameters: THREE.MeshPhysicalMaterialParameters = {
     map: textures.color,
-    color: body.id === "mercury" ? 0xd8d1c6 : body.id === "moon" ? 0xd8d6d1 : 0xffffff,
+    color: body.id === "mercury"
+      ? 0xd8d1c6
+      : body.id === "moon"
+        ? 0xd8d6d1
+        : 0xffffff,
     bumpScale: body.id === "moon"
       ? 0.009
       : body.id === "mercury"

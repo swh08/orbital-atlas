@@ -5,7 +5,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { BODIES, BODY_BY_ID, PLANETS, type BodyId, type CelestialBody } from "../data/bodies";
+import { BODIES, BODY_BY_ID, PLANETS, SATELLITES, type BodyId, type CelestialBody } from "../data/bodies";
 import { createOrbitPoints, orbitalPosition, spinRadians } from "../simulation/orbits";
 import {
   applyRingShadow,
@@ -77,7 +77,12 @@ interface CameraTransition {
 
 const J2000_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
 const DAY_MS = 86_400_000;
-const MOON_ORBIT_RADIUS = 1.72;
+const SATELLITE_ORBIT_RADII: Partial<Record<BodyId, number>> = {
+  moon: 1.72,
+  phobos: 1.08,
+  deimos: 1.68,
+};
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const OVERVIEW_MIN_DISTANCE = 2;
 const OVERVIEW_MAX_DISTANCE = 190;
 const TOUR_SEQUENCE: BodyId[] = [
@@ -102,6 +107,8 @@ const FOCUS_EXPOSURE: Record<BodyId, number> = {
   earth: 1,
   moon: 1,
   mars: 1.02,
+  phobos: 1.04,
+  deimos: 1.04,
   jupiter: 1.02,
   saturn: 1.04,
   uranus: 1.08,
@@ -150,7 +157,8 @@ export class SolarSystem {
   private readonly tempQuaternion = new THREE.Quaternion();
   private readonly selectionMarker: THREE.Group;
   private readonly selectionMarkerArcs: THREE.Group;
-  private readonly moonOrbit: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  private readonly satelliteOrbitLines = new THREE.Group();
+  private readonly satelliteOrbits = new Map<BodyId, THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>>();
   private composer: EffectComposer | null = null;
   private frameHandle = 0;
   private frameCount = 0;
@@ -235,11 +243,23 @@ export class SolarSystem {
     this.selectionMarker.visible = false;
     this.scene.add(this.selectionMarker);
 
-    this.moonOrbit = new THREE.Line(
-      this.createMoonOrbitGeometry(),
-      new THREE.LineBasicMaterial({ color: 0x9aacbd, transparent: true, opacity: 0.18 }),
-    );
-    this.scene.add(this.moonOrbit);
+    for (const satellite of SATELLITES) {
+      const orbit = new THREE.Line(
+        this.createSatelliteOrbitGeometry(satellite),
+        new THREE.LineBasicMaterial({
+          color: satellite.accent,
+          transparent: true,
+          opacity: satellite.id === "moon" ? 0.18 : 0.24,
+          depthWrite: false,
+        }),
+      );
+      if (satellite.parentId === "mars") {
+        orbit.rotation.z = THREE.MathUtils.degToRad(BODY_BY_ID.get("mars")?.axialTiltDeg ?? 0);
+      }
+      this.satelliteOrbits.set(satellite.id, orbit);
+      this.satelliteOrbitLines.add(orbit);
+    }
+    this.scene.add(this.satelliteOrbitLines);
     this.scene.add(this.orbitLines);
 
     this.configureLoadingManager();
@@ -397,7 +417,7 @@ export class SolarSystem {
 
   setOrbitLinesVisible(visible: boolean): void {
     this.orbitLines.visible = visible;
-    this.moonOrbit.visible = visible;
+    this.satelliteOrbitLines.visible = visible;
   }
 
   getTimeRate(): number {
@@ -779,9 +799,9 @@ export class SolarSystem {
     }
   }
 
-  private createMoonOrbitGeometry(): THREE.BufferGeometry {
-    const moon = BODY_BY_ID.get("moon");
-    const points = moon ? createOrbitPoints(moon, 128, MOON_ORBIT_RADIUS) : [];
+  private createSatelliteOrbitGeometry(body: CelestialBody): THREE.BufferGeometry {
+    const orbitRadius = SATELLITE_ORBIT_RADII[body.id];
+    const points = orbitRadius ? createOrbitPoints(body, 128, orbitRadius) : [];
     return new THREE.BufferGeometry().setFromPoints(points);
   }
 
@@ -829,22 +849,26 @@ export class SolarSystem {
         continue;
       }
 
-      let moonSurfaceRotation: number | null = null;
-      if (bodyId === "moon") {
-        const earthNode = this.bodyNodes.get("earth");
-        if (earthNode) {
+      let satelliteSurfaceRotation: number | null = null;
+      if (body.parentId) {
+        const parentNode = this.bodyNodes.get(body.parentId);
+        const orbitRadius = SATELLITE_ORBIT_RADII[bodyId];
+        if (parentNode && orbitRadius) {
           const angle = (this.simulationDays / body.orbitalPeriodDays) * Math.PI * 2 +
             THREE.MathUtils.degToRad(body.initialPhaseDeg);
-          const local = orbitalPosition(body, this.simulationDays, this.tempPosition, MOON_ORBIT_RADIUS);
-          root.position.copy(earthNode.root.position).add(local);
-          this.moonOrbit.position.copy(earthNode.root.position);
-          moonSurfaceRotation = Math.PI - angle;
+          const local = orbitalPosition(body, this.simulationDays, this.tempPosition, orbitRadius);
+          if (body.parentId === "mars") {
+            local.applyAxisAngle(Z_AXIS, THREE.MathUtils.degToRad(parentNode.body.axialTiltDeg));
+          }
+          root.position.copy(parentNode.root.position).add(local);
+          this.satelliteOrbits.get(bodyId)?.position.copy(parentNode.root.position);
+          satelliteSurfaceRotation = Math.PI - angle;
         }
       } else {
         root.position.copy(orbitalPosition(body, this.simulationDays, this.tempPosition));
       }
 
-      surface.rotation.y = moonSurfaceRotation ?? spinRadians(body, this.simulationDays);
+      surface.rotation.y = satelliteSurfaceRotation ?? spinRadians(body, this.simulationDays);
       if (node.cityLights) node.cityLights.rotation.y = surface.rotation.y;
       if (node.cloud) {
         const cloudPeriod = bodyId === "earth" ? 0.82 : bodyId === "venus" ? 4.2 : 1.027;
@@ -959,7 +983,7 @@ export class SolarSystem {
       const towardSun = target.clone().negate().normalize();
       const tangent = new THREE.Vector3().crossVectors(THREE.Object3D.DEFAULT_UP, towardSun).normalize();
       const tangentSign = Math.sign(currentDirection.dot(tangent)) || 1;
-      const airlessCloseUp = bodyId === "mercury" || bodyId === "moon";
+      const airlessCloseUp = bodyId === "mercury" || body.kind === "moon";
       offsetDirection
         .copy(towardSun)
         .multiplyScalar(airlessCloseUp ? 0.48 : 0.68)
@@ -1017,7 +1041,7 @@ export class SolarSystem {
       this.previousFocusPosition.copy(target);
       this.focusInitialized = true;
       this.controls.enabled = this.cameraMode !== "tour" && this.cameraMode !== "cinematic";
-      this.controls.minDistance = Math.max(node.visualRadius * 1.25, 0.7);
+      this.controls.minDistance = Math.max(node.visualRadius * 1.25, node.body.kind === "moon" ? 0.12 : 0.7);
       this.controls.maxDistance = Math.max(node.visualRadius * 35, 35);
     }
   }

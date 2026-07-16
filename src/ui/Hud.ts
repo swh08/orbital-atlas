@@ -20,6 +20,7 @@ type CycledCameraMode = Extract<CameraMode, "tour" | "cinematic" | "flight">;
 
 const MOBILE_CAMERA_MODES: readonly CycledCameraMode[] = ["tour", "cinematic", "flight"];
 const TIME_RATES = [1 / 86_400, 1 / 24, 1, 7, 30] as const;
+const AU_KM = 149_597_870.7;
 
 export class Hud {
   private readonly root: HTMLElement;
@@ -85,10 +86,14 @@ export class Hud {
     this.query<HTMLElement>("#details-kind").textContent = this.messages.kinds[body.kind];
     this.query<HTMLElement>("#details-description").textContent = copy.description;
     this.query<HTMLElement>("#detail-radius").textContent = `${this.formatNumber(body.radiusKm)} km`;
+    const parent = body.parentId ? BODY_BY_ID.get(body.parentId) : undefined;
     this.query<HTMLElement>("#detail-distance").textContent = body.id === "sun"
       ? this.messages.format.solarSystemCenter
-      : body.id === "moon"
-        ? this.messages.format.fromEarth(`${this.formatNumber(384_400, 0)} km`)
+      : parent
+        ? this.messages.format.fromBody(
+          `${this.formatNumber(body.semiMajorAxisAu * AU_KM, 0)} km`,
+          getBodyCopy(this.locale, parent).name,
+        )
         : `${this.formatNumber(body.semiMajorAxisAu, 4)} AU`;
     this.query<HTMLElement>("#detail-orbit").textContent = this.formatPeriod(body.orbitalPeriodDays);
     this.query<HTMLElement>("#detail-rotation").textContent = this.formatPeriod(Math.abs(body.rotationPeriodHours) / 24);
