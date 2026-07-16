@@ -458,3 +458,7 @@ export function createCoronaTexture(size = 512): THREE.CanvasTexture {
 export function textureSourceUrl(body: BodyId): string | undefined {
   return OBSERVATION_COLOR_MAPS[body];
 }
+
+export function hasObservationSurface(body: BodyId): boolean {
+  return Boolean(OBSERVATION_COLOR_MAPS[body] || body === "phobos" || body === "deimos");
+}

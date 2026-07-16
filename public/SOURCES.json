@@ -104,6 +104,22 @@
       "credit": "NASA"
     },
     {
+      "title": "NASA/JPL-Caltech Phobos 3D Model",
+      "url": "https://science.nasa.gov/resource/phobos-mars-moon-3d-model/",
+      "usage": ["public/models/phobos.glb - official 32,040-triangle shape model with embedded 2048 x 2048 surface texture"],
+      "credit": "NASA/JPL-Caltech",
+      "note": "SHA-256: 757712101e4fbcf9527942ee664a3bc6dfe3ab460466b760f4bf51ee85dbd8d3",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
+      "title": "NASA/JPL-Caltech Deimos 3D Model",
+      "url": "https://science.nasa.gov/resource/deimos-mars-moon-3d-model/",
+      "usage": ["public/models/deimos.glb - official 32,512-triangle shape model with embedded 1024 x 1024 surface texture"],
+      "credit": "NASA/JPL-Caltech",
+      "note": "SHA-256: 5d5da763970acffe88aac26d3c3bd0fa66c5bef251d1bb4bfe2ae5fd723507e4",
+      "licensePage": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+    },
+    {
       "title": "NASA Enhanced Color Mercury Map",
       "url": "https://science.nasa.gov/resource/enhanced-color-mercury-map/",
       "usage": ["Mercury observation color baseline, converted to neutral grayscale for natural presentation"],

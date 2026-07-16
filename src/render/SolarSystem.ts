@@ -24,6 +24,7 @@ import {
   loadBodyTextures,
   type BodyTextureSet,
 } from "./textures";
+import { loadBodyModel, type BodyModelAsset } from "./models";
 
 export type CameraMode = "overview" | "focus" | "tour" | "cinematic" | "flight";
 
@@ -278,16 +279,17 @@ export class SolarSystem {
     let completedTextures = 0;
     const loadedBodies = await Promise.all(
       planetBodies.map(async (body) => {
-        const textures = await loadBodyTextures(body.id, this.loadingManager);
+        const model = await loadBodyModel(body, this.loadingManager);
+        const textures = model ? null : await loadBodyTextures(body.id, this.loadingManager);
         completedTextures += 1;
         this.events.onLoadingChanged(
           0.22 + (completedTextures / planetBodies.length) * 0.58,
           { stage: "bodyTexture", bodyId: body.id },
         );
-        return { body, textures };
+        return { body, textures, model };
       }),
     );
-    for (const { body, textures } of loadedBodies) this.createPlanet(body, textures);
+    for (const { body, textures, model } of loadedBodies) this.createPlanet(body, textures, model);
 
     this.createPostProcessing();
     this.updateSize();
@@ -650,22 +652,29 @@ export class SolarSystem {
     });
   }
 
-  private createPlanet(body: CelestialBody, textures: BodyTextureSet): void {
+  private createPlanet(
+    body: CelestialBody,
+    textures: BodyTextureSet | null,
+    model: BodyModelAsset | null,
+  ): void {
     const root = new THREE.Group();
     root.name = body.id;
     const tilt = new THREE.Group();
     tilt.rotation.z = THREE.MathUtils.degToRad(body.axialTiltDeg);
     root.add(tilt);
 
-    const material = createPlanetMaterial(body, textures);
-    const surface = new THREE.Mesh(
+    const material = textures ? createPlanetMaterial(body, textures) : undefined;
+    const surface: THREE.Object3D = model?.surface ?? new THREE.Mesh(
       new THREE.SphereGeometry(body.visualRadius, 128, 64),
       material,
     );
-    surface.scale.y = BODY_FLATTENING[body.id] ?? 1;
-    surface.userData.bodyId = body.id;
+    if (!model) surface.scale.y = BODY_FLATTENING[body.id] ?? 1;
+    surface.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.userData.bodyId = body.id;
+      this.clickableObjects.push(object);
+    });
     tilt.add(surface);
-    this.clickableObjects.push(surface);
 
     const node: BodyNode = {
       body,
@@ -676,10 +685,10 @@ export class SolarSystem {
       visualRadius: body.visualRadius,
       framingRadius: body.visualRadius * (RING_SYSTEMS[body.id]?.outer ?? 1.03),
       surfaceMaterial: material,
-      textureSource: textures.source,
+      textureSource: model?.source ?? textures?.source ?? "renderDerived",
     };
 
-    if ((body.id === "earth" || body.id === "venus" || body.id === "mars") && textures.clouds) {
+    if ((body.id === "earth" || body.id === "venus" || body.id === "mars") && textures?.clouds) {
       const cloud = new THREE.Mesh(
         new THREE.SphereGeometry(
           body.visualRadius * (body.id === "earth" ? 1.008 : body.id === "mars" ? 1.012 : 1.015),
@@ -694,7 +703,7 @@ export class SolarSystem {
       this.clickableObjects.push(cloud);
     }
 
-    if (body.id === "earth" && textures.emissive) {
+    if (body.id === "earth" && textures?.emissive) {
       const cityLights = new THREE.Mesh(
         new THREE.SphereGeometry(body.visualRadius * 1.006, 64, 32),
         createNightLightsMaterial(textures.emissive),
@@ -706,8 +715,8 @@ export class SolarSystem {
     }
 
     this.addAtmosphere(body, tilt);
-    if (RING_SYSTEMS[body.id]) {
-      node.ringShadowDirection = this.addRingSystem(body, root, tilt, material, textures.rings);
+    if (RING_SYSTEMS[body.id] && material) {
+      node.ringShadowDirection = this.addRingSystem(body, root, tilt, material, textures?.rings);
     }
 
     this.scene.add(root);

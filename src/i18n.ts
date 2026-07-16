@@ -105,6 +105,7 @@ export interface Messages {
   };
   texture: {
     nasa: string;
+    nasaModel: string;
     nasaLoading: string;
     procedural: string;
     sun: string;
@@ -231,6 +232,7 @@ const EN_MESSAGES: Messages = {
   },
   texture: {
     nasa: "Scientific observation map",
+    nasaModel: "NASA/JPL 3D model",
     nasaLoading: "Loading scientific observation map",
     procedural: "Render-derived scientific material",
     sun: "Procedural photosphere based on NASA/SDO",
@@ -349,6 +351,7 @@ const ZH_MESSAGES: Messages = {
   },
   texture: {
     nasa: "科学观测纹理",
+    nasaModel: "NASA/JPL 观测模型",
     nasaLoading: "正在载入科学观测纹理",
     procedural: "科学参考的渲染派生材质",
     sun: "程序光球，参考 NASA/SDO",

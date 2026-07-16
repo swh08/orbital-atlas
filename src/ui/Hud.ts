@@ -1,7 +1,7 @@
 import { BODIES, BODY_BY_ID, type BodyId, type CelestialBody } from "../data/bodies";
 import { getBodyCopy, getMessages, type Locale, type LocaleSelection, type Messages } from "../i18n";
 import type { CameraMode, LoadingStage } from "../render/SolarSystem";
-import { textureSourceUrl } from "../render/textures";
+import { hasObservationSurface, textureSourceUrl } from "../render/textures";
 
 export interface HudActions {
   selectBody: (bodyId: BodyId) => void;
@@ -178,7 +178,9 @@ export class Hud {
   setTextureSource(bodyId: BodyId, source: "observation" | "renderDerived" | "loading"): void {
     if (bodyId !== this.selectedBodyId) return;
     const label = source === "observation"
-      ? this.messages.texture.nasa
+      ? bodyId === "phobos" || bodyId === "deimos"
+        ? this.messages.texture.nasaModel
+        : this.messages.texture.nasa
       : source === "loading"
         ? this.messages.texture.nasaLoading
         : this.messages.texture.procedural;
@@ -576,8 +578,10 @@ export class Hud {
 
   private textureSourceLabel(bodyId: BodyId): string {
     if (bodyId === "sun") return this.messages.texture.sun;
-    if (!textureSourceUrl(bodyId)) return this.messages.texture.procedural;
-    return this.messages.texture.nasa;
+    if (!hasObservationSurface(bodyId)) return this.messages.texture.procedural;
+    return bodyId === "phobos" || bodyId === "deimos"
+      ? this.messages.texture.nasaModel
+      : this.messages.texture.nasa;
   }
 
   private query<T extends HTMLElement>(selector: string): T {
