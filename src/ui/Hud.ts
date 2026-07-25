@@ -521,7 +521,7 @@ export class Hud {
   }
 
   private setDetailsDrawerCollapsed(collapsed: boolean, sync = true): void {
-    const shouldCollapse = this.compactUi && collapsed;
+    const shouldCollapse = collapsed;
     const panel = this.query<HTMLElement>("#details-panel");
     const button = this.query<HTMLButtonElement>("#details-drawer-toggle");
     panel.classList.toggle("is-collapsed", shouldCollapse);
@@ -554,7 +554,7 @@ export class Hud {
 
   private readonly handleCompactUiChange = (event: MediaQueryListEvent): void => {
     this.compactUi = event.matches;
-    if (!this.compactUi) this.setDetailsDrawerCollapsed(false, false);
+    this.setDetailsDrawerCollapsed(false, false);
     this.query<HTMLButtonElement>("#tour-button").textContent = this.compactUi
       ? this.messages.hud.tour
       : this.messages.hud.guidedTour;
