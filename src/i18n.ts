@@ -68,6 +68,8 @@ export interface Messages {
     surfaceSource: string;
     approach: string;
     returnOverview: string;
+    collapseDetails: string;
+    expandDetails: string;
     controlsAria: string;
     bodies: string;
     overview: string;
@@ -195,6 +197,8 @@ const EN_MESSAGES: Messages = {
     surfaceSource: "Surface source",
     approach: "Approach",
     returnOverview: "Return to overview",
+    collapseDetails: "Collapse details",
+    expandDetails: "Expand details",
     controlsAria: "Solar System controls",
     bodies: "Bodies",
     overview: "Overview",
@@ -314,6 +318,8 @@ const ZH_MESSAGES: Messages = {
     surfaceSource: "表面来源",
     approach: "近轨观测",
     returnOverview: "返回全景",
+    collapseDetails: "收起天体详情",
+    expandDetails: "展开天体详情",
     controlsAria: "太阳系控制",
     bodies: "天体",
     overview: "全景",

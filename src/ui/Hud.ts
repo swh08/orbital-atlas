@@ -262,24 +262,30 @@ export class Hud {
         </section>
 
         <aside id="details-panel" class="details-panel" role="dialog" aria-modal="${String(this.compactUi)}" aria-hidden="true" aria-labelledby="details-name" inert>
-          <div class="details-accent" aria-hidden="true"></div>
-          <div class="panel-heading details-heading">
-            <div><p id="details-english">${this.locale === "zh-Hans" ? sun.englishName : m.hud.profileEyebrow}</p><h2 id="details-name">${sunCopy.name}</h2></div>
-            <div class="details-summary">
-              <p id="details-kind" class="body-kind">${m.kinds[sun.kind]}</p>
-              <p id="details-description" class="details-description"></p>
+          <button id="details-drawer-toggle" class="details-drawer-toggle" type="button" aria-expanded="true" aria-controls="details-drawer-content" aria-label="${m.hud.collapseDetails}">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </button>
+          <div id="details-drawer-content" class="details-drawer-content">
+            <div class="panel-heading details-heading">
+              <div><p id="details-english">${this.locale === "zh-Hans" ? sun.englishName : m.hud.profileEyebrow}</p><h2 id="details-name">${sunCopy.name}</h2></div>
+              <div class="details-summary">
+                <p id="details-kind" class="body-kind">${m.kinds[sun.kind]}</p>
+                <p id="details-description" class="details-description"></p>
+              </div>
             </div>
-          </div>
-          <dl class="body-facts">
-            <div><dt>${m.hud.averageRadius} / ${m.hud.orbitalDistance}</dt><dd><span id="detail-radius"></span> / <span id="detail-distance"></span></dd></div>
-            <div><dt>${m.hud.orbitalPeriod} / ${m.hud.rotationPeriod}</dt><dd><span id="detail-orbit"></span> / <span id="detail-rotation"></span></dd></div>
-            <div><dt>${m.hud.axialTilt} / ${m.hud.orbitalInclination}</dt><dd><span id="detail-tilt"></span> / <span id="detail-inclination"></span></dd></div>
-            <div><dt>${m.hud.temperature}</dt><dd id="detail-temperature"></dd></div>
-          </dl>
-          <div class="source-note"><span>${m.hud.surfaceSource}</span><strong id="texture-source">${m.texture.procedural}</strong></div>
-          <div class="details-actions">
-            <button id="approach-button" class="primary-button" type="button">${m.hud.approach}</button>
-            <button id="overview-detail-button" class="secondary-button" type="button">${m.hud.returnOverview}</button>
+            <dl class="body-facts">
+              <div><dt>${m.hud.averageRadius} / ${m.hud.orbitalDistance}</dt><dd><span id="detail-radius"></span> / <span id="detail-distance"></span></dd></div>
+              <div><dt>${m.hud.orbitalPeriod} / ${m.hud.rotationPeriod}</dt><dd><span id="detail-orbit"></span> / <span id="detail-rotation"></span></dd></div>
+              <div><dt>${m.hud.axialTilt} / ${m.hud.orbitalInclination}</dt><dd><span id="detail-tilt"></span> / <span id="detail-inclination"></span></dd></div>
+              <div><dt>${m.hud.temperature}</dt><dd id="detail-temperature"></dd></div>
+            </dl>
+            <div class="source-note"><span>${m.hud.surfaceSource}</span><strong id="texture-source">${m.texture.procedural}</strong></div>
+            <div class="details-actions">
+              <button id="approach-button" class="primary-button" type="button">${m.hud.approach}</button>
+              <button id="overview-detail-button" class="secondary-button" type="button">${m.hud.returnOverview}</button>
+            </div>
           </div>
         </aside>
 
@@ -330,6 +336,7 @@ export class Hud {
       }
       if (target.closest("#catalog-button")) this.toggleCatalog();
       else if (target.closest("#settings-button")) this.toggleSettings();
+      else if (target.closest("#details-drawer-toggle")) this.toggleDetailsDrawer();
       else if (target.closest("#overview-detail-button")) {
         this.actions?.overview();
         this.closePanel("details");
@@ -451,6 +458,7 @@ export class Hud {
     for (const otherPanel of ["catalog", "details", "settings"] as const) {
       if (otherPanel !== panelName) this.closePanel(otherPanel, false);
     }
+    if (panelName === "details") this.setDetailsDrawerCollapsed(false, false);
     const panel = this.query<HTMLElement>(`#${panelName}-panel`);
     panel.classList.add("is-open");
     panel.setAttribute("aria-hidden", "false");
@@ -477,6 +485,7 @@ export class Hud {
     const panel = this.query<HTMLElement>(`#${panelName}-panel`);
     const wasOpen = panel.classList.contains("is-open");
     panel.classList.remove("is-open");
+    if (panelName === "details") this.setDetailsDrawerCollapsed(false, false);
     panel.setAttribute("aria-hidden", "true");
     panel.inert = true;
     if (panelName === "catalog") this.query<HTMLButtonElement>("#catalog-button").setAttribute("aria-expanded", "false");
@@ -506,23 +515,46 @@ export class Hud {
     return false;
   }
 
+  private toggleDetailsDrawer(): void {
+    const panel = this.query<HTMLElement>("#details-panel");
+    this.setDetailsDrawerCollapsed(!panel.classList.contains("is-collapsed"));
+  }
+
+  private setDetailsDrawerCollapsed(collapsed: boolean, sync = true): void {
+    const shouldCollapse = this.compactUi && collapsed;
+    const panel = this.query<HTMLElement>("#details-panel");
+    const button = this.query<HTMLButtonElement>("#details-drawer-toggle");
+    panel.classList.toggle("is-collapsed", shouldCollapse);
+    button.setAttribute("aria-expanded", String(!shouldCollapse));
+    button.setAttribute("aria-label", shouldCollapse
+      ? this.messages.hud.expandDetails
+      : this.messages.hud.collapseDetails);
+    this.query<HTMLElement>("#details-drawer-content").inert = shouldCollapse;
+    if (sync) this.syncPanelState();
+  }
+
   private syncPanelState(): void {
     const catalogOpen = this.query<HTMLElement>("#catalog-panel").classList.contains("is-open");
-    const detailsOpen = this.query<HTMLElement>("#details-panel").classList.contains("is-open");
+    const detailsPanel = this.query<HTMLElement>("#details-panel");
+    const detailsOpen = detailsPanel.classList.contains("is-open");
+    const detailsCollapsed = detailsOpen && detailsPanel.classList.contains("is-collapsed");
+    const detailsExpanded = detailsOpen && !detailsCollapsed;
     const settingsOpen = this.query<HTMLElement>("#settings-panel").classList.contains("is-open");
     const shell = this.query<HTMLElement>(".experience-shell");
     shell.classList.toggle("has-open-catalog", catalogOpen);
     shell.classList.toggle("has-open-settings", settingsOpen);
     shell.classList.toggle("has-open-panel", detailsOpen);
-    this.query<HTMLElement>("#panel-scrim").setAttribute("aria-hidden", String(!detailsOpen));
-    this.query<HTMLElement>(".top-bar").inert = this.compactUi && detailsOpen;
-    this.query<HTMLElement>(".bottom-controls").inert = this.compactUi && detailsOpen;
+    shell.classList.toggle("has-collapsed-details", detailsCollapsed);
+    detailsPanel.setAttribute("aria-modal", String(this.compactUi && detailsExpanded));
+    this.query<HTMLElement>("#panel-scrim").setAttribute("aria-hidden", String(!detailsExpanded));
+    this.query<HTMLElement>(".top-bar").inert = this.compactUi && detailsExpanded;
+    this.query<HTMLElement>(".bottom-controls").inert = this.compactUi && detailsExpanded;
     if (catalogOpen || detailsOpen || settingsOpen) this.query<HTMLElement>("#interaction-hint").classList.remove("is-visible");
   }
 
   private readonly handleCompactUiChange = (event: MediaQueryListEvent): void => {
     this.compactUi = event.matches;
-    this.query<HTMLElement>("#details-panel").setAttribute("aria-modal", String(this.compactUi));
+    if (!this.compactUi) this.setDetailsDrawerCollapsed(false, false);
     this.query<HTMLButtonElement>("#tour-button").textContent = this.compactUi
       ? this.messages.hud.tour
       : this.messages.hud.guidedTour;
